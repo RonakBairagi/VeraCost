@@ -1,0 +1,73 @@
+/**
+ * VeraCost Design System — Tokens & Theming
+ */
+
+:root {
+  /* Color Palette - Obsidian Dark Mode */
+  --bg-app: #080c14;
+  --bg-card: rgba(15, 23, 42, 0.75);
+  --bg-card-hover: rgba(24, 35, 60, 0.85);
+  --bg-surface: #0f172a;
+  --bg-elevated: #1e293b;
+  --bg-input: rgba(15, 23, 42, 0.85);
+
+  /* Borders & Glassmorphism */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-medium: rgba(255, 255, 255, 0.16);
+  --border-focus: rgba(20, 184, 166, 0.55);
+  --glass-blur: blur(14px);
+
+  /* Accents */
+  --teal-primary: #0d9488;
+  --teal-bright: #14b8a6;
+  --teal-glow: rgba(20, 184, 166, 0.22);
+
+  --cyan-primary: #0284c7;
+  --cyan-bright: #06b6d4;
+  --cyan-glow: rgba(6, 182, 212, 0.22);
+
+  --emerald-success: #10b981;
+  --emerald-glow: rgba(16, 185, 129, 0.2);
+
+  --amber-warning: #f59e0b;
+  --amber-glow: rgba(245, 158, 11, 0.2);
+
+  --rose-danger: #f43f5e;
+  --rose-glow: rgba(244, 63, 94, 0.2);
+
+  --indigo-accent: #6366f1;
+
+  /* Typography Colors */
+  --text-main: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-inverse: #0f172a;
+
+  /* Comparison Option Color Coding */
+  --opt-0-color: #14b8a6;
+  --opt-0-bg: rgba(20, 184, 166, 0.12);
+  --opt-1-color: #6366f1;
+  --opt-1-bg: rgba(99, 102, 241, 0.12);
+  --opt-2-color: #f59e0b;
+  --opt-2-bg: rgba(245, 158, 11, 0.12);
+  --opt-3-color: #ec4899;
+  --opt-3-bg: rgba(236, 72, 153, 0.12);
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --shadow-glow: 0 0 25px var(--teal-glow);
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}

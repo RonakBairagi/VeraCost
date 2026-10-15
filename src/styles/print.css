@@ -1,0 +1,96 @@
+/**
+ * VeraCost Print & Formal Export Stylesheet
+ * Optimized for crisp monochrome/clean paper printing and browser "Save as PDF"
+ */
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+  }
+
+  body::before,
+  .app-header,
+  .hero-section,
+  .control-bar,
+  .option-actions,
+  .btn-primary,
+  .btn-secondary,
+  .icon-btn,
+  .sample-bar,
+  .modal-overlay:not(.print-mode-active),
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .print-report-container {
+    padding: 1.5cm;
+    background: #ffffff;
+    color: #0f172a;
+  }
+
+  .print-header {
+    border-bottom: 2px solid #0f172a;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .print-brand {
+    font-size: 22pt;
+    font-weight: 800;
+  }
+
+  .print-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 1rem;
+    border-radius: 6px;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.5rem;
+  }
+
+  .print-table th, 
+  .print-table td {
+    border: 1px solid #cbd5e1;
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 10pt;
+  }
+
+  .print-table th {
+    background: #f1f5f9;
+    font-weight: 700;
+  }
+
+  .print-disclaimer {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e2e8f0;
+    font-size: 8.5pt;
+    color: #64748b;
+  }
+
+  /* Force page breaks cleanly */
+  .page-break {
+    page-break-before: always;
+  }
+}

@@ -1,0 +1,122 @@
+/**
+ * VeraCost Design System — Base Typography, Reset & Layout
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Background gradient ambiance */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 20%;
+  width: 60vw;
+  height: 400px;
+  background: radial-gradient(circle, rgba(13, 148, 136, 0.08) 0%, rgba(6, 182, 212, 0.03) 40%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+h1, h2, h3, h4, .brand-font {
+  font-family: 'Outfit', sans-serif;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+h1 {
+  font-size: 2.25rem;
+  line-height: 1.2;
+}
+
+h2 {
+  font-size: 1.65rem;
+  line-height: 1.3;
+}
+
+h3 {
+  font-size: 1.25rem;
+  line-height: 1.4;
+}
+
+p {
+  color: var(--text-secondary);
+}
+
+code, pre, .mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9em;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-app);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Layout Container */
+.container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* Links & Buttons Reset */
+a {
+  color: var(--teal-bright);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+a:hover {
+  color: #5eead4;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  outline: none;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+/* Accessible focus ring */
+:focus-visible {
+  outline: 2px solid var(--teal-bright);
+  outline-offset: 2px;
+}
