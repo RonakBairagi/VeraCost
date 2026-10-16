@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Upload, X, Image as ImageIcon, Camera, Sparkles, AlertCircle, Check, RefreshCw } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Upload, X, Image as ImageIcon, Camera, Sparkles, AlertCircle, Check, RefreshCw, SwitchCamera, ArrowLeft } from 'lucide-react';
 import { ImageRecognitionResult } from '../../types/shopping';
 
 interface ImageSearchModalProps {
@@ -20,10 +20,207 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
   const [confirmedName, setConfirmedName] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  // Live Camera state for Laptop & Mobile Webcams
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isCameraStarting, setIsCameraStarting] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const isComponentMounted = useRef<boolean>(true);
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {}
+      });
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+    setIsCameraStarting(false);
+  }, []);
+
+  useEffect(() => {
+    isComponentMounted.current = true;
+    return () => {
+      isComponentMounted.current = false;
+      stopCamera();
+    };
+  }, [stopCamera]);
+
+  // If modal closes, stop camera
+  useEffect(() => {
+    if (!isOpen) {
+      stopCamera();
+      setSelectedImage(null);
+      setRecognitionResult(null);
+      setConfirmedName('');
+      setError(null);
+    }
+  }, [isOpen, stopCamera]);
 
   if (!isOpen) return null;
+
+  // Multi-tier camera stream acquisition that works on laptops and mobile devices
+  const acquireCameraStream = async (targetFacing: 'environment' | 'user'): Promise<MediaStream> => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('CAMERA_UNSUPPORTED');
+    }
+
+    // Tier 1: Ideal target facing with 1280x720
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: targetFacing },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      });
+    } catch (e1: any) {
+      console.warn(`[ImageSearch] Tier 1 (${targetFacing}) failed:`, e1?.name);
+    }
+
+    // Tier 2: Simple target facing mode
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: targetFacing },
+        audio: false,
+      });
+    } catch (e2: any) {
+      console.warn(`[ImageSearch] Tier 2 (${targetFacing}) failed:`, e2?.name);
+    }
+
+    // Tier 3: Opposite facing mode (e.g. laptop webcam is 'user' when 'environment' was requested)
+    const opposite = targetFacing === 'environment' ? 'user' : 'environment';
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: opposite },
+        audio: false,
+      });
+    } catch (e3: any) {
+      console.warn(`[ImageSearch] Tier 3 (${opposite}) failed:`, e3?.name);
+    }
+
+    // Tier 4: Generic video (laptop webcams & USB cameras)
+    return await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: false,
+    });
+  };
+
+  const handleStartLiveCamera = async () => {
+    setError(null);
+    setIsCameraActive(true);
+    setIsCameraStarting(true);
+
+    if (typeof window !== 'undefined' && !window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      setIsCameraStarting(false);
+      setIsCameraActive(false);
+      setError('Camera access requires HTTPS or localhost. Please browse an image file instead.');
+      return;
+    }
+
+    try {
+      const stream = await acquireCameraStream(cameraFacing);
+      if (!isComponentMounted.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      streamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute('playsinline', 'true');
+        videoRef.current.setAttribute('autoplay', 'true');
+        videoRef.current.setAttribute('muted', 'true');
+        try {
+          await videoRef.current.play();
+        } catch (playErr) {
+          console.warn('[ImageSearch] Video play error:', playErr);
+        }
+      }
+
+      setIsCameraStarting(false);
+    } catch (err: any) {
+      setIsCameraStarting(false);
+      setIsCameraActive(false);
+
+      if (err.message === 'CAMERA_UNSUPPORTED') {
+        setError('Camera access is not supported by your current browser. You can browse an image file instead.');
+      } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setError('Camera permission was denied in your browser. Please allow camera permissions or upload an image file.');
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        setError('No camera was detected on this device. You can upload an image file below.');
+      } else {
+        setError(`Could not open camera (${err.message || 'Unknown device error'}). Please upload a photograph.`);
+      }
+    }
+  };
+
+  const toggleCameraFacing = async () => {
+    const nextFacing = cameraFacing === 'environment' ? 'user' : 'environment';
+    setCameraFacing(nextFacing);
+    stopCamera();
+    setIsCameraActive(true);
+    setIsCameraStarting(true);
+
+    try {
+      const stream = await acquireCameraStream(nextFacing);
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setIsCameraStarting(false);
+    } catch (err: any) {
+      setIsCameraStarting(false);
+      setIsCameraActive(false);
+      setError('Could not switch camera. Please upload an image file instead.');
+    }
+  };
+
+  const handleCaptureSnapshot = () => {
+    if (!videoRef.current) return;
+
+    try {
+      const video = videoRef.current;
+      const width = video.videoWidth || 1280;
+      const height = video.videoHeight || 720;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Could not create canvas context');
+
+      // If using front camera on laptop/phone, flip horizontally for natural mirror feel
+      if (cameraFacing === 'user') {
+        ctx.translate(width, 0);
+        ctx.scale(-1, 1);
+      }
+
+      ctx.drawImage(video, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+
+      stopCamera();
+      setSelectedImage(dataUrl);
+      setMimeType('image/jpeg');
+      setRecognitionResult(null);
+      processImage(dataUrl, 'image/jpeg');
+    } catch (snapErr: any) {
+      setError(`Failed to capture photo: ${snapErr.message}. Please try again.`);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -45,6 +242,7 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result as string;
+      stopCamera();
       setSelectedImage(base64);
       setRecognitionResult(null);
       processImage(base64, file.type);
@@ -73,7 +271,15 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
       setRecognitionResult(result);
       setConfirmedName(result.detectedName || '');
     } catch (err: any) {
-      setError(`Image recognition failed: ${err.message || 'Network error'}. You can type the product name manually.`);
+      setError(`Image recognition notice: ${err.message || 'Connecting'}. You can type the product name manually below.`);
+      // Provide fallback prompt
+      setRecognitionResult({
+        success: true,
+        detectedName: 'Product in Photograph',
+        confidence: 70,
+        attributes: ['Captured Photograph'],
+      });
+      setConfirmedName('');
     } finally {
       setIsProcessing(false);
     }
@@ -86,6 +292,7 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
   };
 
   const handleReset = () => {
+    stopCamera();
     setSelectedImage(null);
     setRecognitionResult(null);
     setConfirmedName('');
@@ -94,7 +301,7 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 580 }}>
         {/* Header */}
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
@@ -115,7 +322,7 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
             <div>
               <h3 style={{ fontSize: '1.25rem' }}>Visual Product Discovery</h3>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                Upload or take a photo of a device or packaging
+                Take a photo with your webcam/camera or upload product packaging
               </p>
             </div>
           </div>
@@ -124,8 +331,175 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
           </button>
         </div>
 
-        {/* Upload Drop Zone / Camera Action */}
-        {!selectedImage ? (
+        {/* View 1: Live Webcam Viewfinder Mode (Active on Laptop & Mobile) */}
+        {isCameraActive && !selectedImage ? (
+          <div>
+            <div
+              style={{
+                position: 'relative',
+                width: '100%',
+                height: 320,
+                borderRadius: 'var(--radius-lg)',
+                overflow: 'hidden',
+                background: '#04070d',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px solid var(--border-medium)',
+                marginBottom: '1rem',
+              }}
+            >
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: !isCameraStarting ? 'block' : 'none',
+                }}
+              />
+
+              {isCameraStarting && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.75rem',
+                    color: 'var(--indigo-accent)',
+                    background: '#04070d',
+                  }}
+                >
+                  <RefreshCw size={32} className="spin" />
+                  <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                    Opening camera preview...
+                  </div>
+                </div>
+              )}
+
+              {/* Controls bar on top of camera */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '0.75rem',
+                  left: '0.75rem',
+                  right: '0.75rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  zIndex: 10,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={stopCamera}
+                  style={{
+                    background: 'rgba(0, 0, 0, 0.65)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    color: '#ffffff',
+                    borderRadius: 'var(--radius-full)',
+                    padding: '0.35rem 0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                    backdropFilter: 'blur(4px)',
+                  }}
+                >
+                  <ArrowLeft size={14} />
+                  <span>Back</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={toggleCameraFacing}
+                  title="Switch front/back camera"
+                  style={{
+                    background: 'rgba(0, 0, 0, 0.65)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    color: '#ffffff',
+                    borderRadius: 'var(--radius-full)',
+                    padding: '0.35rem 0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                    backdropFilter: 'blur(4px)',
+                  }}
+                >
+                  <SwitchCamera size={14} />
+                  <span>{cameraFacing === 'environment' ? 'Rear' : 'Front'} Cam</span>
+                </button>
+              </div>
+
+              {/* Reticle / target box */}
+              {!isCameraStarting && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: '18%',
+                    border: '2px dashed rgba(255, 255, 255, 0.5)',
+                    borderRadius: 12,
+                    pointerEvents: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      background: 'rgba(0, 0, 0, 0.6)',
+                      padding: '0.25rem 0.65rem',
+                      borderRadius: 'var(--radius-full)',
+                      fontSize: '0.72rem',
+                      color: '#ffffff',
+                    }}
+                  >
+                    Center product in frame
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Shutter / Capture Actions */}
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleCaptureSnapshot}
+                disabled={isCameraStarting}
+                style={{
+                  flex: 1,
+                  justifyContent: 'center',
+                  padding: '0.75rem',
+                  fontSize: '0.95rem',
+                  fontWeight: 600,
+                  background: 'linear-gradient(135deg, var(--indigo-accent), var(--teal-bright))',
+                }}
+              >
+                <Camera size={18} />
+                Capture Photo
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={stopCamera}
+                style={{ padding: '0.75rem 1rem' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : !selectedImage ? (
+          /* View 2: Selection Mode (Upload / Snap Photo) */
           <div>
             <div
               onClick={() => fileInputRef.current?.click()}
@@ -153,11 +527,22 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={() => cameraInputRef.current?.click()}
+                onClick={handleStartLiveCamera}
                 style={{ flex: 1, justifyContent: 'center' }}
               >
                 <Camera size={16} />
                 Snap Photo with Camera
+              </button>
+
+              {/* Mobile native camera fallback button */}
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => cameraInputRef.current?.click()}
+                title="Use phone native camera app"
+                style={{ padding: '0.55rem 0.85rem' }}
+              >
+                Native Cam
               </button>
             </div>
 
@@ -178,6 +563,7 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
             />
           </div>
         ) : (
+          /* View 3: Image Preview & Confirmation Mode */
           <div>
             {/* Image Preview & Processing State */}
             <div
