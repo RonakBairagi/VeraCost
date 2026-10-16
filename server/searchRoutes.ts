@@ -23,7 +23,7 @@ const ALLOWED_RETAILER_DOMAINS = [
 // 1. Multi-Retailer Product Search
 searchRouter.post('/retailers', async (req: Request, res: Response) => {
   try {
-    const { query, brand, model, variant, category, barcode, targetRetailers } = req.body;
+    const { query, brand, model, variant, category, barcode, targetRetailers } = req.body || {};
 
     if (!query && !barcode) {
       return res.status(400).json({ error: 'Search query or barcode is required.' });
@@ -66,7 +66,7 @@ searchRouter.get('/retailers/status', (req: Request, res: Response) => {
 // 3. Barcode Lookup (Open Products/Food Facts + Verified Catalog)
 searchRouter.post('/barcode', async (req: Request, res: Response) => {
   try {
-    const { barcode } = req.body;
+    const { barcode } = req.body || {};
     if (!barcode || typeof barcode !== 'string') {
       return res.status(400).json({ error: 'Valid barcode string is required.' });
     }
@@ -142,7 +142,7 @@ searchRouter.post('/barcode', async (req: Request, res: Response) => {
 // 4. Image Recognition (Multimodal Vision / Safe Feature Recognition)
 searchRouter.post('/recognize-image', async (req: Request, res: Response) => {
   try {
-    const { imageBase64, mimeType } = req.body;
+    const { imageBase64, mimeType } = req.body || {};
 
     if (!imageBase64 || typeof imageBase64 !== 'string') {
       return res.status(400).json({ error: 'Base64 image data is required.' });
@@ -266,7 +266,7 @@ Respond ONLY with a JSON object:
 // 5. SSRF-Protected Product URL Parser
 searchRouter.post('/parse-url', async (req: Request, res: Response) => {
   try {
-    const { url } = req.body;
+    const { url } = req.body || {};
     if (!url || typeof url !== 'string') {
       return res.status(400).json({ error: 'URL is required.' });
     }

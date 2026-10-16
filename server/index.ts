@@ -11,23 +11,46 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
 
-// Search & Retailer Routes
+// Vercel Serverless / Proxy Body Stream Safeguard:
+// If an upstream proxy or Vercel's @vercel/node helper has already read the body stream
+// into req.body, mark it as read so body-parser does not hang on the closed stream.
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.body !== undefined && req.body !== null) {
+    (req as any)._body = true;
+    if (typeof req.body === 'string') {
+      try {
+        req.body = JSON.parse(req.body);
+      } catch {
+        // preserve original text if not JSON
+      }
+    }
+  }
+  next();
+});
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Search & Retailer Routes:
+// Mount on both '/api/search' and '/search' to handle both direct and rewritten Vercel requests
 app.use('/api/search', searchRouter);
+app.use('/search', searchRouter);
 
 // Health Check
-app.get('/api/health', (req: Request, res: Response) => {
+const healthHandler = (req: Request, res: Response) => {
   res.json({
     status: 'ok',
     service: 'VeraCost Decision API',
     provider: 'NVIDIA Nemotron via Nebius Token Factory',
     timestamp: new Date().toISOString(),
   });
-});
+};
+app.get('/api/health', healthHandler);
+app.get('/health', healthHandler);
 
 // Non-secret public configuration
-app.get('/api/config', (req: Request, res: Response) => {
+const configHandler = (req: Request, res: Response) => {
   const apiKey = process.env.NEBIUS_API_KEY;
   const isLive = Boolean(apiKey && apiKey.trim() !== '' && apiKey.trim() !== 'your_nebius_api_key_here');
 
@@ -38,12 +61,14 @@ app.get('/api/config', (req: Request, res: Response) => {
     isLiveConfigured: isLive,
     mode: isLive ? 'live-nemotron' : 'mock-fallback',
   });
-});
+};
+app.get('/api/config', configHandler);
+app.get('/config', configHandler);
 
 // AI Explanation Endpoint
-app.post('/api/ai/explain', async (req: Request, res: Response, next: NextFunction) => {
+const explainHandler = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { analysis, customApiKey, customModel } = req.body;
+    const { analysis, customApiKey, customModel } = req.body || {};
 
     if (!analysis || !analysis.results || !analysis.projectTitle) {
       return res.status(400).json({
@@ -63,11 +88,14 @@ app.post('/api/ai/explain', async (req: Request, res: Response, next: NextFuncti
   } catch (err: any) {
     next(err);
   }
-});
+};
+app.post('/api/ai/explain', explainHandler);
+app.post('/ai/explain', explainHandler);
 
 // Test API Key verification endpoint
-app.post('/api/ai/test-key', async (req: Request, res: Response) => {
-  const testKey = req.body.apiKey || (req.headers['x-nebius-api-key'] as string);
+const testKeyHandler = async (req: Request, res: Response) => {
+  const body = req.body || {};
+  const testKey = body.apiKey || (req.headers['x-nebius-api-key'] as string);
   const baseUrl = (process.env.NEBIUS_BASE_URL || 'https://api.tokenfactory.us-central1.nebius.com/v1').replace(/\/+$/, '');
 
   if (!testKey || testKey.trim() === '') {
@@ -107,7 +135,9 @@ app.post('/api/ai/test-key', async (req: Request, res: Response) => {
       message: `Could not connect to Nebius Token Factory: ${err.message}`,
     });
   }
-});
+};
+app.post('/api/ai/test-key', testKeyHandler);
+app.post('/ai/test-key', testKeyHandler);
 
 // Global Error Handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

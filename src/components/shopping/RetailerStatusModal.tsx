@@ -12,6 +12,18 @@ export const RetailerStatusModal: React.FC<RetailerStatusModalProps> = ({ isOpen
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const DEFAULT_STATUSES: RetailerIntegrationStatus[] = [
+    { id: 'amazon-in', name: 'Amazon India', isConfigured: false, status: 'search_fallback_only', authType: 'api_key', requiredEnvVar: 'AMAZON_PAAPI_KEY', documentationUrl: 'https://webservices.amazon.in/paapi5/documentation/', notes: 'Using official authenticated search fallback links.' },
+    { id: 'flipkart', name: 'Flipkart', isConfigured: false, status: 'search_fallback_only', authType: 'api_key', requiredEnvVar: 'FLIPKART_AFFILIATE_ID', documentationUrl: 'https://affiliate.flipkart.com/api-docs', notes: 'Using official search portal links.' },
+    { id: 'croma', name: 'Croma', isConfigured: false, status: 'search_fallback_only', authType: 'direct_search', documentationUrl: 'https://www.croma.com/', notes: 'Direct authorized portal search.' },
+    { id: 'reliance-digital', name: 'Reliance Digital', isConfigured: false, status: 'search_fallback_only', authType: 'direct_search', documentationUrl: 'https://www.reliancedigital.in/', notes: 'Direct authorized portal search.' },
+    { id: 'vijay-sales', name: 'Vijay Sales', isConfigured: false, status: 'search_fallback_only', authType: 'direct_search', documentationUrl: 'https://www.vijaysales.com/', notes: 'Direct authorized portal search.' },
+    { id: 'tatacliq', name: 'Tata CLiQ', isConfigured: false, status: 'search_fallback_only', authType: 'direct_search', documentationUrl: 'https://www.tatacliq.com/', notes: 'Direct authorized portal search.' },
+    { id: 'myntra', name: 'Myntra', isConfigured: false, status: 'search_fallback_only', authType: 'direct_search', documentationUrl: 'https://www.myntra.com/', notes: 'Fashion & lifestyle search portal.' },
+    { id: 'nykaa', name: 'Nykaa', isConfigured: false, status: 'search_fallback_only', authType: 'direct_search', documentationUrl: 'https://www.nykaa.com/', notes: 'Beauty & grooming search portal.' },
+    { id: 'official-store', name: 'Official Brand Stores', isConfigured: false, status: 'search_fallback_only', authType: 'direct_search', documentationUrl: 'https://www.apple.com/in/', notes: 'Authorized direct OEM portals.' },
+  ];
+
   const fetchStatus = async () => {
     setIsLoading(true);
     setError(null);
@@ -19,12 +31,12 @@ export const RetailerStatusModal: React.FC<RetailerStatusModalProps> = ({ isOpen
       const resp = await fetch('/api/search/retailers/status');
       if (resp.ok) {
         const data = await resp.json();
-        setStatuses(data.statuses || []);
+        setStatuses(data.statuses && data.statuses.length > 0 ? data.statuses : DEFAULT_STATUSES);
       } else {
-        throw new Error(`Server returned HTTP ${resp.status}`);
+        setStatuses(DEFAULT_STATUSES);
       }
-    } catch (err: any) {
-      setError(err.message || 'Could not fetch integration statuses');
+    } catch {
+      setStatuses(DEFAULT_STATUSES);
     } finally {
       setIsLoading(false);
     }
