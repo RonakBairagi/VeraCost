@@ -9,10 +9,39 @@ import { SavedComparisonsModal } from './components/SavedComparisonsModal';
 import { ReportViewModal } from './components/ReportViewModal';
 import { NebiusSettingsModal } from './components/NebiusSettingsModal';
 import { NewComparisonModal } from './components/NewComparisonModal';
+import { DynamicBackground } from './components/DynamicBackground';
 import { calculateComparison } from './engine/calculator';
 
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<'landing' | 'workspace' | 'saved'>('workspace');
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    try {
+      const storedTheme = localStorage.getItem('veracost_theme');
+      if (storedTheme === 'dark' || storedTheme === 'light') {
+        return storedTheme;
+      }
+      if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        return 'light';
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.className = theme;
+    try {
+      localStorage.setItem('veracost_theme', theme);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
   const [project, setProject] = useState<ComparisonProject>(() => {
     try {
       const stored = localStorage.getItem('veracost_active_project');
@@ -81,19 +110,23 @@ export const App: React.FC = () => {
   const analysis = calculateComparison(project);
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <DynamicBackground theme={theme} />
+
       <Header
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
         currency={currency}
         setCurrency={handleCurrencyChange}
         isAiLive={isAiLive}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         onOpenSavedModal={() => setIsSavedModalOpen(true)}
         onOpenNewComparison={() => setIsNewComparisonModalOpen(true)}
       />
 
-      <main style={{ flex: 1 }}>
+      <main style={{ flex: 1, position: 'relative', zIndex: 1 }}>
         {currentTab === 'landing' ? (
           <LandingHero
             onStartComparison={() => setCurrentTab('workspace')}
@@ -153,12 +186,14 @@ export const App: React.FC = () => {
 
       {/* Footer */}
       <footer
-        className="no-print"
+        className="no-print app-footer"
         style={{
           borderTop: '1px solid var(--border-subtle)',
           padding: '2rem 0',
-          background: 'rgba(8, 12, 20, 0.95)',
+          background: 'var(--bg-footer, rgba(8, 12, 20, 0.95))',
           marginTop: 'auto',
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         <div

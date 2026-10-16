@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layers, Sparkles, SlidersHorizontal, Bookmark, Settings2, PlusCircle } from 'lucide-react';
+import { Layers, Sparkles, SlidersHorizontal, Bookmark, Settings2, PlusCircle, Sun, Moon } from 'lucide-react';
 import { BRAND_CONFIG, CurrencyConfig } from '../config/branding';
 
 interface HeaderProps {
@@ -8,6 +8,8 @@ interface HeaderProps {
   currency: string;
   setCurrency: (c: string) => void;
   isAiLive: boolean;
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
   onOpenSettings: () => void;
   onOpenSavedModal: () => void;
   onOpenNewComparison: () => void;
@@ -19,6 +21,8 @@ export const Header: React.FC<HeaderProps> = ({
   currency,
   setCurrency,
   isAiLive,
+  theme,
+  onToggleTheme,
   onOpenSettings,
   onOpenSavedModal,
   onOpenNewComparison,
@@ -103,6 +107,26 @@ export const Header: React.FC<HeaderProps> = ({
             <Sparkles size={13} style={{ color: isAiLive ? 'var(--teal-bright)' : 'var(--amber-warning)' }} />
             <span>{isAiLive ? 'Nebius Nemotron (Live)' : 'Nemotron (Mock)'}</span>
             <Settings2 size={13} style={{ marginLeft: 2, color: 'var(--text-muted)' }} />
+          </button>
+
+          {/* Theme Switcher (Dark / Light Mode) */}
+          <button
+            className="theme-toggle-btn"
+            onClick={onToggleTheme}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle dark/light theme"
+          >
+            {theme === 'dark' ? (
+              <>
+                <Sun size={15} className="theme-icon sun" />
+                <span>Light</span>
+              </>
+            ) : (
+              <>
+                <Moon size={15} className="theme-icon moon" />
+                <span>Dark</span>
+              </>
+            )}
           </button>
         </div>
       </div>

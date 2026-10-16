@@ -5,7 +5,7 @@
 /* Header & Top Bar */
 .app-header {
   border-bottom: 1px solid var(--border-subtle);
-  background: rgba(8, 12, 20, 0.85);
+  background: var(--bg-header, rgba(8, 12, 20, 0.85));
   backdrop-filter: var(--glass-blur);
   position: sticky;
   top: 0;
@@ -493,7 +493,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--bg-card-subtle, rgba(15, 23, 42, 0.6));
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: 0.5rem 0.75rem;
@@ -818,5 +818,525 @@
   }
   .options-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ========================================================
+   THEME TOGGLE BUTTON & LIGHT MODE OVERRIDES
+   ======================================================== */
+
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.theme-toggle-btn:hover {
+  border-color: var(--teal-bright);
+  background: var(--bg-elevated);
+  box-shadow: 0 0 12px var(--teal-glow);
+  transform: translateY(-1px);
+}
+
+.theme-icon.sun {
+  color: #f59e0b;
+}
+
+.theme-icon.moon {
+  color: #818cf8;
+}
+
+/* Light Theme Typography & Surface Refinements */
+[data-theme="light"] .brand-title {
+  background: linear-gradient(120deg, #0f172a, #334155);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+[data-theme="light"] .hero-title {
+  background: linear-gradient(135deg, #0f172a 35%, #475569 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+[data-theme="light"] .nav-tab-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .nav-tab-btn.active {
+  color: var(--teal-bright);
+  background: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="light"] .modal-overlay {
+  background: rgba(15, 23, 42, 0.55);
+}
+
+[data-theme="light"] .close-btn:hover {
+  color: var(--text-main);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .ai-panel {
+  background: linear-gradient(145deg, #ffffff, #f8fafc);
+  border-color: rgba(13, 148, 136, 0.35);
+  box-shadow: 0 10px 40px rgba(13, 148, 136, 0.08);
+}
+
+[data-theme="light"] .ai-summary-box {
+  background: #f1f5f9;
+  color: var(--text-main);
+}
+
+[data-theme="light"] .app-footer {
+  background: var(--bg-footer);
+}
+
+/* ========================================================
+   DYNAMIC MOVING PROFESSIONAL UI/UX BACKGROUND
+   ======================================================== */
+
+.dynamic-bg-container {
+  perspective: 1200px;
+}
+
+/* Ambient Bioluminescent Aurora Orbs */
+.bg-aurora-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  pointer-events: none;
+  opacity: 0.42;
+  will-change: transform;
+}
+
+[data-theme="light"] .bg-aurora-orb {
+  opacity: 0.25;
+  filter: blur(85px);
+}
+
+.bg-aurora-1 {
+  width: 550px;
+  height: 550px;
+  background: radial-gradient(circle, rgba(20, 184, 166, 0.35) 0%, rgba(13, 148, 136, 0.1) 60%, transparent 80%);
+  top: -120px;
+  right: -80px;
+  animation: floatOrb1 26s ease-in-out infinite alternate;
+}
+
+.bg-aurora-2 {
+  width: 480px;
+  height: 480px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, rgba(79, 70, 229, 0.08) 60%, transparent 80%);
+  bottom: -100px;
+  left: -80px;
+  animation: floatOrb2 30s ease-in-out infinite alternate;
+}
+
+.bg-aurora-3 {
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.25) 0%, rgba(2, 132, 199, 0.06) 60%, transparent 80%);
+  top: 40%;
+  left: 20%;
+  animation: floatOrb3 22s ease-in-out infinite alternate;
+}
+
+.bg-aurora-4 {
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.18) 0%, rgba(219, 39, 119, 0.04) 60%, transparent 80%);
+  top: 60%;
+  right: 15%;
+  animation: floatOrb4 28s ease-in-out infinite alternate;
+}
+
+/* Subtle Technical Grid Matrix Lines */
+.bg-grid-matrix {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(to right, var(--border-subtle) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border-subtle) 1px, transparent 1px);
+  background-size: 54px 54px;
+  mask-image: radial-gradient(circle at 50% 50%, black 40%, transparent 85%);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, black 40%, transparent 85%);
+  opacity: 0.35;
+}
+
+/* Base Floating Design Wrapper */
+.floating-design {
+  position: absolute;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* 1. Radar Compass */
+.float-radar-compass {
+  top: 5%;
+  right: 4%;
+  animation: radarDriftAndRotate 42s linear infinite;
+  opacity: 0.65;
+}
+
+/* 2. 3D Isometric Cube */
+.float-isometric-cube-1 {
+  top: 14%;
+  left: 3%;
+  animation: floatCube3D 18s ease-in-out infinite alternate;
+  opacity: 0.7;
+}
+
+/* 3. TCO Telemetry Badge */
+.float-badge-tco {
+  top: 38%;
+  left: 2.5%;
+  animation: floatDriftBadge1 14s ease-in-out infinite alternate;
+  opacity: 0.78;
+}
+
+/* 4. Residual Telemetry Badge */
+.float-badge-residual {
+  bottom: 16%;
+  right: 3.5%;
+  animation: floatDriftBadge2 16s ease-in-out infinite alternate;
+  opacity: 0.78;
+}
+
+/* 5. Nemotron AI Telemetry Badge */
+.float-badge-ai {
+  bottom: 8%;
+  left: 4%;
+  animation: floatDriftBadge3 15s ease-in-out infinite alternate;
+  opacity: 0.78;
+}
+
+/* 6. Cyber Circuit Waves */
+.float-cyber-wave {
+  top: 48%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  justify-content: center;
+  opacity: 0.45;
+}
+
+.circuit-wave-pulse {
+  animation: dashPulse 20s linear infinite;
+}
+
+.circuit-wave-pulse-reverse {
+  animation: dashPulseReverse 24s linear infinite;
+}
+
+/* 7. Hexagonal Cluster */
+.float-hex-cluster {
+  top: 22%;
+  right: 22%;
+  animation: floatHexRotate 25s ease-in-out infinite alternate;
+  opacity: 0.6;
+}
+
+/* 8. Diamond Prism */
+.float-diamond-prism {
+  bottom: 35%;
+  right: 18%;
+  animation: floatDiamond 19s ease-in-out infinite alternate;
+  opacity: 0.6;
+}
+
+/* HUD Telemetry Codes & Crosshairs */
+.float-hud-coord-1 {
+  top: 28px;
+  left: 32px;
+  opacity: 0.45;
+  animation: floatPulseSlow 8s ease-in-out infinite alternate;
+}
+
+.float-hud-coord-2 {
+  bottom: 30px;
+  right: 40px;
+  opacity: 0.45;
+  animation: floatPulseSlow 10s ease-in-out infinite alternate 2s;
+}
+
+.hud-code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.float-hud-crosshair-1 {
+  top: 24%;
+  left: 28%;
+  font-family: monospace;
+  font-size: 1.1rem;
+  color: var(--teal-bright);
+  opacity: 0.35;
+  animation: floatPulseSlow 6s ease-in-out infinite alternate;
+}
+
+.float-hud-crosshair-2 {
+  top: 72%;
+  left: 45%;
+  font-family: monospace;
+  font-size: 1.1rem;
+  color: var(--cyan-bright);
+  opacity: 0.3;
+  animation: floatPulseSlow 9s ease-in-out infinite alternate 1s;
+}
+
+.float-hud-crosshair-3 {
+  top: 35%;
+  right: 12%;
+  font-family: monospace;
+  font-size: 1.1rem;
+  color: var(--indigo-accent);
+  opacity: 0.35;
+  animation: floatPulseSlow 7s ease-in-out infinite alternate 3s;
+}
+
+/* Telemetry Badge Cards */
+.telemetry-badge {
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-lg);
+  padding: 0.55rem 0.9rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transition: transform var(--transition-fast);
+}
+
+.telemetry-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.telemetry-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--teal-bright);
+  box-shadow: 0 0 6px var(--teal-bright);
+}
+
+.telemetry-dot.residual {
+  background: var(--amber-warning);
+  box-shadow: 0 0 6px var(--amber-warning);
+}
+
+.telemetry-dot.ai {
+  background: var(--emerald-success);
+  box-shadow: 0 0 6px var(--emerald-success);
+}
+
+.telemetry-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+
+.telemetry-body {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.telemetry-stat {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--teal-bright);
+}
+
+.telemetry-code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--text-muted);
+}
+
+.telemetry-confidence {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--emerald-success);
+}
+
+/* ========================================================
+   KEYFRAME ANIMATIONS FOR MOVING DESIGNS
+   ======================================================== */
+
+@keyframes radarDriftAndRotate {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(-35px, 25px, 0) rotate(180deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(360deg);
+  }
+}
+
+@keyframes floatCube3D {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translate3d(25px, -20px, 0) rotate(8deg) scale(1.04);
+  }
+  100% {
+    transform: translate3d(-15px, 20px, 0) rotate(-6deg) scale(0.96);
+  }
+}
+
+@keyframes floatDriftBadge1 {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(20px, -24px, 0) rotate(2deg);
+  }
+  100% {
+    transform: translate3d(-10px, 18px, 0) rotate(-1.5deg);
+  }
+}
+
+@keyframes floatDriftBadge2 {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(-25px, -18px, 0) rotate(-2deg);
+  }
+  100% {
+    transform: translate3d(15px, 20px, 0) rotate(1.5deg);
+  }
+}
+
+@keyframes floatDriftBadge3 {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(18px, -16px, 0);
+  }
+  100% {
+    transform: translate3d(-12px, 14px, 0);
+  }
+}
+
+@keyframes floatHexRotate {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translate3d(-20px, 30px, 0) rotate(45deg) scale(1.06);
+  }
+  100% {
+    transform: translate3d(15px, -15px, 0) rotate(90deg) scale(0.95);
+  }
+}
+
+@keyframes floatDiamond {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(-20px, -25px, 0) rotate(-15deg) scale(1.08);
+  }
+  100% {
+    transform: translate3d(15px, 20px, 0) rotate(10deg) scale(0.95);
+  }
+}
+
+@keyframes floatOrb1 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-80px, 90px, 0) scale(1.18);
+  }
+  100% {
+    transform: translate3d(40px, -60px, 0) scale(0.9);
+  }
+}
+
+@keyframes floatOrb2 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(90px, -80px, 0) scale(1.15);
+  }
+  100% {
+    transform: translate3d(-50px, 60px, 0) scale(0.92);
+  }
+}
+
+@keyframes floatOrb3 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(60px, 70px, 0) scale(1.22);
+  }
+  100% {
+    transform: translate3d(-70px, -50px, 0) scale(0.88);
+  }
+}
+
+@keyframes floatOrb4 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-60px, -70px, 0) scale(1.14);
+  }
+  100% {
+    transform: translate3d(70px, 50px, 0) scale(0.92);
+  }
+}
+
+@keyframes floatPulseSlow {
+  0%, 100% {
+    opacity: 0.25;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes dashPulse {
+  to {
+    stroke-dashoffset: -1000;
+  }
+}
+
+@keyframes dashPulseReverse {
+  to {
+    stroke-dashoffset: 1000;
   }
 }
