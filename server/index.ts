@@ -114,7 +114,12 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`[VeraCost Server] Running on http://localhost:${PORT}`);
-  console.log(`[VeraCost Server] Provider: Nebius Token Factory (NVIDIA Nemotron)`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`[VeraCost Server] Running on http://localhost:${PORT}`);
+    console.log(`[VeraCost Server] Provider: Nebius Token Factory (NVIDIA Nemotron)`);
+  });
+}
+
+export default app;
+
