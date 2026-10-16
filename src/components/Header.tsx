@@ -1,10 +1,10 @@
 import React from 'react';
-import { Layers, Sparkles, SlidersHorizontal, Bookmark, Settings2, PlusCircle, Sun, Moon } from 'lucide-react';
+import { Layers, Sparkles, SlidersHorizontal, Bookmark, Settings2, PlusCircle, Sun, Moon, ShoppingBag } from 'lucide-react';
 import { BRAND_CONFIG, CurrencyConfig } from '../config/branding';
 
 interface HeaderProps {
-  currentTab: 'landing' | 'workspace' | 'saved';
-  setCurrentTab: (tab: 'landing' | 'workspace' | 'saved') => void;
+  currentTab: 'landing' | 'shopping' | 'workspace' | 'saved';
+  setCurrentTab: (tab: 'landing' | 'shopping' | 'workspace' | 'saved') => void;
   currency: string;
   setCurrency: (c: string) => void;
   isAiLive: boolean;
@@ -53,6 +53,13 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => setCurrentTab('landing')}
           >
             Overview
+          </button>
+          <button
+            className={`nav-tab-btn ${currentTab === 'shopping' ? 'active' : ''}`}
+            onClick={() => setCurrentTab('shopping')}
+          >
+            <ShoppingBag size={15} />
+            Smart Price Finder
           </button>
           <button
             className={`nav-tab-btn ${currentTab === 'workspace' ? 'active' : ''}`}

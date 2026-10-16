@@ -15,7 +15,8 @@ import {
   Smartphone,
   Headphones,
   Gamepad2,
-  Package
+  Package,
+  ShoppingBag
 } from 'lucide-react';
 import { BRAND_CONFIG } from '../config/branding';
 import { SAMPLE_COMPARISONS } from '../data/sampleComparisons';
@@ -25,12 +26,14 @@ interface LandingHeroProps {
   onStartComparison: () => void;
   onOpenNewComparison: () => void;
   onSelectSample: (project: ComparisonProject) => void;
+  onOpenSmartFinder?: () => void;
 }
 
 export const LandingHero: React.FC<LandingHeroProps> = ({
   onStartComparison,
   onOpenNewComparison,
   onSelectSample,
+  onOpenSmartFinder,
 }) => {
   return (
     <div className="landing-page">
@@ -53,20 +56,19 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
         </p>
 
         <div className="hero-cta-group">
-          <button className="btn-primary" onClick={onOpenNewComparison}>
+          {onOpenSmartFinder && (
+            <button className="btn-primary" onClick={onOpenSmartFinder} style={{ background: 'linear-gradient(135deg, var(--teal-primary), var(--cyan-primary))' }}>
+              <ShoppingBag size={18} />
+              Smart Price Finder (Compare Indian Retailers)
+            </button>
+          )}
+          <button className="btn-secondary" onClick={onOpenNewComparison}>
             <PlusCircle size={18} />
             Create Custom Comparison
           </button>
           <button className="btn-secondary" onClick={onStartComparison}>
             Open Simulator Workspace
             <ArrowRight size={16} />
-          </button>
-          <button 
-            className="btn-secondary" 
-            onClick={() => onSelectSample(SAMPLE_COMPARISONS[0])}
-          >
-            <Smartphone size={16} />
-            Phone Benchmark (iPhone vs. Galaxy)
           </button>
         </div>
 

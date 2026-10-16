@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BRAND_CONFIG } from './config/branding';
 import { SAMPLE_COMPARISONS } from './data/sampleComparisons';
-import { ComparisonProject } from './types/cost';
+import { ComparisonProject, ComparisonOption, CostItem, ProductCategory } from './types/cost';
 import { Header } from './components/Header';
 import { LandingHero } from './components/LandingHero';
 import { Workspace } from './components/Workspace';
@@ -10,10 +10,12 @@ import { ReportViewModal } from './components/ReportViewModal';
 import { NebiusSettingsModal } from './components/NebiusSettingsModal';
 import { NewComparisonModal } from './components/NewComparisonModal';
 import { DynamicBackground } from './components/DynamicBackground';
+import { SmartPriceFinder } from './components/shopping/SmartPriceFinder';
 import { calculateComparison } from './engine/calculator';
+import { getSuggestionsForCategory, createCostItemFromSuggestion } from './engine/discovery';
 
 export const App: React.FC = () => {
-  const [currentTab, setCurrentTab] = useState<'landing' | 'workspace' | 'saved'>('workspace');
+  const [currentTab, setCurrentTab] = useState<'landing' | 'shopping' | 'workspace' | 'saved'>('shopping');
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try {
       const storedTheme = localStorage.getItem('veracost_theme');
@@ -107,6 +109,61 @@ export const App: React.FC = () => {
     setCurrentTab('workspace');
   };
 
+  // Bridge from Smart Price Finder into VeraCost Lifetime TCO Calculator
+  const handleImportFromShopping = (optionPartial: Partial<ComparisonOption>) => {
+    const category = (optionPartial.category as ProductCategory) || 'electronics';
+    const suggestions = getSuggestionsForCategory(category).slice(0, 4);
+
+    const setupAndAccessories: CostItem[] = [];
+    const recurringCosts: CostItem[] = [];
+    const maintenanceCosts: CostItem[] = [];
+    const operatingCosts: CostItem[] = [];
+
+    suggestions.forEach((s) => {
+      const item = createCostItemFromSuggestion(s);
+      if (s.category === 'setup') setupAndAccessories.push(item);
+      else if (s.category === 'recurring') recurringCosts.push(item);
+      else if (s.category === 'maintenance') maintenanceCosts.push(item);
+      else if (s.category === 'operating') operatingCosts.push(item);
+    });
+
+    const upfront = optionPartial.initialPurchasePrice || 10000;
+    const newOption: ComparisonOption = {
+      id: `opt-${Date.now()}`,
+      name: optionPartial.name || 'Verified Deal Option',
+      category,
+      currency: optionPartial.currency || currency,
+      brandOrModel: optionPartial.brandOrModel || '',
+      initialPurchasePrice: upfront,
+      salesTaxOrFees: 0,
+      purchaseConfidence: 'confirmed',
+      purchaseSource: {
+        sourceName: 'Smart Price Finder Verified Retailer Offer',
+        isVerified: true,
+        retrievalDate: new Date().toISOString().slice(0, 10),
+      },
+      setupAndAccessories,
+      recurringCosts,
+      maintenanceCosts,
+      operatingCosts,
+      usefulLifeYears: 3,
+      replaceAtEndOfLife: false,
+      replacementCostEstimate: upfront,
+      residualValueEstimate: Math.round(upfront * 0.3), // 30% typical resale recovery
+      residualConfidence: 'user-estimate',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    setProject((prev) => ({
+      ...prev,
+      currency: newOption.currency,
+      options: [...prev.options, newOption],
+    }));
+    setCurrency(newOption.currency);
+    setCurrentTab('workspace');
+  };
+
   const analysis = calculateComparison(project);
 
   return (
@@ -132,6 +189,12 @@ export const App: React.FC = () => {
             onStartComparison={() => setCurrentTab('workspace')}
             onOpenNewComparison={() => setIsNewComparisonModalOpen(true)}
             onSelectSample={handleSelectSample}
+            onOpenSmartFinder={() => setCurrentTab('shopping')}
+          />
+        ) : currentTab === 'shopping' ? (
+          <SmartPriceFinder
+            onImportToCalculator={handleImportFromShopping}
+            currentCurrency={currency}
           />
         ) : (
           <Workspace
