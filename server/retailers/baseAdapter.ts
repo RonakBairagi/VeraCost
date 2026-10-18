@@ -2,6 +2,21 @@ import { IRetailerAdapter, RetailerSearchQuery, RetailerAdapterResult } from './
 import { RetailerId, RetailerListing, RetailerIntegrationStatus } from '../../src/types/shopping';
 import { VERIFIED_INDIAN_CATALOG } from './verifiedCatalog';
 
+/**
+ * Cleans product search queries for reliable merchant portal URL generation.
+ * Strips parentheses, quotes, and punctuation that cause Amazon & Flipkart search syntax errors.
+ */
+export function cleanRetailerSearchQuery(raw: string): string {
+  if (!raw) return '';
+  return raw
+    .replace(/\s*\([^)]*\)/g, ' ')   // removes (128 GB), (Space Grey), etc.
+    .replace(/\s*\[[^\]]*\]/g, ' ')   // removes [12 GB RAM], etc.
+    .replace(/["'“”]/g, '')           // removes double/single quotes
+    .replace(/[\\/\[\]{}|^~]/g, ' ')  // removes syntax operators
+    .replace(/\s+/g, ' ')             // collapses extra whitespace
+    .trim();
+}
+
 export abstract class BaseRetailerAdapter implements IRetailerAdapter {
   abstract readonly id: RetailerId;
   abstract readonly name: string;

@@ -24,7 +24,8 @@ import {
   Store,
   ChevronDown,
   Layers,
-  ArrowUpDown
+  ArrowUpDown,
+  QrCode
 } from 'lucide-react';
 import { 
   SearchedProduct, 
@@ -37,11 +38,13 @@ import {
 import { ComparisonOption, ProductCategory } from '../../types/cost';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { ImageSearchModal } from './ImageSearchModal';
+import { ProductQrScannerModal } from './ProductQrScannerModal';
 import { UrlSearchModal } from './UrlSearchModal';
 import { PriceHistoryModal } from './PriceHistoryModal';
 import { PriceAlertModal } from './PriceAlertModal';
 import { RetailerStatusModal } from './RetailerStatusModal';
 import { performClientCatalogSearch } from '../../utils/clientCatalogSearch';
+import { inferProductCategory } from '../../engine/discovery';
 
 interface SmartPriceFinderProps {
   onImportToCalculator: (option: Partial<ComparisonOption>) => void;
@@ -76,6 +79,7 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
   // Modals
   const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
   const [isImageSearchOpen, setIsImageSearchOpen] = useState(false);
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
   const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
   const [isPriceHistoryOpen, setIsPriceHistoryOpen] = useState(false);
   const [isPriceAlertOpen, setIsPriceAlertOpen] = useState(false);
@@ -119,7 +123,7 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
     });
   };
 
-  const executeSearch = async (queryText: string, barcode?: string) => {
+  const executeSearch = async (queryText: string, barcode?: string, categoryHint?: ProductCategory) => {
     const q = queryText.trim();
     if (!q && !barcode) return;
 
@@ -135,6 +139,7 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
         body: JSON.stringify({
           query: q,
           barcode,
+          category: categoryHint,
         }),
       });
 
@@ -150,13 +155,19 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
     // If server response is unavailable or returned empty listings, fall back to verified catalog
     if (!productResult || !productResult.listings || productResult.listings.length === 0) {
       try {
-        productResult = performClientCatalogSearch(q, barcode);
+        productResult = performClientCatalogSearch(q, barcode, categoryHint);
       } catch (fallbackErr: any) {
         console.error('Client catalog search error:', fallbackErr);
       }
     }
 
     if (productResult) {
+      if (categoryHint && (!productResult.category || productResult.category === 'electronics')) {
+        productResult.category = categoryHint;
+      } else if (!productResult.category) {
+        productResult.category = inferProductCategory(productResult.name, productResult.brand);
+      }
+
       const finalProduct = productResult;
       setProducts((prev) => {
         // Replace or append
@@ -426,6 +437,17 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
               <button
                 type="button"
                 className="btn-secondary"
+                onClick={() => setIsQrScannerOpen(true)}
+                title="Scan product packaging or manual QR code"
+                style={{ height: '46px', padding: '0 1rem', fontSize: '0.85rem' }}
+              >
+                <QrCode size={16} style={{ color: 'var(--cyan-primary)' }} />
+                Scan Product QR
+              </button>
+
+              <button
+                type="button"
+                className="btn-secondary"
                 onClick={() => setIsImageSearchOpen(true)}
                 title="Identify product from photo using multimodal AI"
                 style={{ height: '46px', padding: '0 1rem', fontSize: '0.85rem' }}
@@ -646,11 +668,12 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
                     type="button"
                     className="btn-primary"
                     onClick={() => {
+                      const effCategory = (currentProduct.category as ProductCategory) || inferProductCategory(currentProduct.name, currentProduct.brand);
                       onImportToCalculator({
                         name: currentProduct.name,
                         brandOrModel: currentProduct.brand,
                         initialPurchasePrice: currentProduct.bestOffer?.estimatedCheckoutCost || 0,
-                        category: currentProduct.category as ProductCategory,
+                        category: effCategory,
                         currency: 'INR',
                       });
                     }}
@@ -882,11 +905,12 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
                           type="button"
                           className="btn-primary"
                           onClick={() => {
+                            const effCategory = (currentProduct.category as ProductCategory) || inferProductCategory(currentProduct.name, currentProduct.brand);
                             onImportToCalculator({
                               name: currentProduct.name,
                               brandOrModel: currentProduct.brand,
                               initialPurchasePrice: listing.estimatedCheckoutCost,
-                              category: currentProduct.category as ProductCategory,
+                              category: effCategory,
                               currency: 'INR',
                             });
                           }}
@@ -1044,22 +1068,31 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
         isOpen={isBarcodeOpen}
         onClose={() => setIsBarcodeOpen(false)}
         onBarcodeDetected={(code, data) => {
-          if (data && data.productName) {
-            setSearchInput(data.productName);
-            executeSearch(data.productName, code);
-          } else {
-            setSearchInput(code);
-            executeSearch(code, code);
-          }
+          const name = data?.productName || code;
+          const cat = data?.category
+            ? inferProductCategory(name, data.brand, data.category)
+            : inferProductCategory(name);
+          setSearchInput(name);
+          executeSearch(name, code, cat);
         }}
       />
 
       <ImageSearchModal
         isOpen={isImageSearchOpen}
         onClose={() => setIsImageSearchOpen(false)}
-        onProductRecognized={(name) => {
+        onProductRecognized={(name, _brand, _model, category) => {
+          const effectiveCat = category || inferProductCategory(name);
           setSearchInput(name);
-          executeSearch(name);
+          executeSearch(name, undefined, effectiveCat);
+        }}
+      />
+
+      <ProductQrScannerModal
+        isOpen={isQrScannerOpen}
+        onClose={() => setIsQrScannerOpen(false)}
+        onProductFound={(name, category) => {
+          setSearchInput(name);
+          executeSearch(name, undefined, category);
         }}
       />
 

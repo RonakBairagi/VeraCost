@@ -10,6 +10,7 @@ import { NykaaAdapter } from './adapters/nykaa';
 import { OfficialStoreAdapter } from './adapters/officialStore';
 import { SearchedProduct, RetailerListing, RetailerIntegrationStatus, RetailerId } from '../../src/types/shopping';
 import { VERIFIED_INDIAN_CATALOG } from './verifiedCatalog';
+import { inferProductCategory } from '../../src/engine/discovery';
 
 export class RetailerManager {
   private adapters: Map<RetailerId, IRetailerAdapter> = new Map();
@@ -127,7 +128,11 @@ export class RetailerManager {
     const productName = catalogMatch?.name || searchQuery.query;
     const brand = catalogMatch?.brand || searchQuery.brand || 'Verified Retail Product';
     const model = catalogMatch?.model || searchQuery.model || searchQuery.query;
-    const category = catalogMatch?.category || searchQuery.category || 'electronics';
+    const category =
+      catalogMatch?.category ||
+      searchQuery.category ||
+      inferProductCategory(productName, brand, searchQuery.category) ||
+      'electronics';
     const variant = catalogMatch?.variant || searchQuery.variant;
     const image = catalogMatch?.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80';
     const priceHistory = catalogMatch?.priceHistory || [];

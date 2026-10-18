@@ -1,4 +1,4 @@
-import { BaseRetailerAdapter } from '../baseAdapter';
+import { BaseRetailerAdapter, cleanRetailerSearchQuery } from '../baseAdapter';
 import { RetailerId } from '../../../src/types/shopping';
 
 export class RelianceDigitalAdapter extends BaseRetailerAdapter {
@@ -13,6 +13,7 @@ export class RelianceDigitalAdapter extends BaseRetailerAdapter {
   }
 
   buildSearchFallbackUrl(query: string): string {
-    return `https://www.reliancedigital.in/search?q=${encodeURIComponent(query)}:relevance`;
+    const cleanQuery = cleanRetailerSearchQuery(query);
+    return `https://www.reliancedigital.in/search?q=${encodeURIComponent(cleanQuery)}`;
   }
 }

@@ -1,4 +1,4 @@
-import { BaseRetailerAdapter } from '../baseAdapter';
+import { BaseRetailerAdapter, cleanRetailerSearchQuery } from '../baseAdapter';
 import { RetailerId } from '../../../src/types/shopping';
 
 export class FlipkartAdapter extends BaseRetailerAdapter {
@@ -13,6 +13,7 @@ export class FlipkartAdapter extends BaseRetailerAdapter {
   }
 
   buildSearchFallbackUrl(query: string): string {
-    return `https://www.flipkart.com/search?q=${encodeURIComponent(query)}&otracker=search&otracker1=search&marketplace=FLIPKART&as-show=on&as=off`;
+    const cleanQuery = cleanRetailerSearchQuery(query);
+    return `https://www.flipkart.com/search?q=${encodeURIComponent(cleanQuery)}`;
   }
 }

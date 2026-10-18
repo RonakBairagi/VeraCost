@@ -390,14 +390,96 @@ export const DISCOVERY_CATALOG: DiscoverySuggestion[] = [
 ];
 
 /**
- * Filter discovery suggestions suitable for a specific product category
+ * Filter discovery suggestions suitable for a specific product category.
+ * Prioritizes direct category matches before general fallbacks.
  */
 export function getSuggestionsForCategory(category: ProductCategory): DiscoverySuggestion[] {
-  return DISCOVERY_CATALOG.filter(item => 
-    item.applicableProductCategories.includes(category) || 
-    item.applicableProductCategories.includes('custom') ||
-    item.applicableProductCategories.includes('other')
-  );
+  const directMatches: DiscoverySuggestion[] = [];
+  const fallbackMatches: DiscoverySuggestion[] = [];
+
+  for (const item of DISCOVERY_CATALOG) {
+    if (item.applicableProductCategories.includes(category)) {
+      directMatches.push(item);
+    } else if (
+      item.applicableProductCategories.includes('custom') ||
+      item.applicableProductCategories.includes('other')
+    ) {
+      fallbackMatches.push(item);
+    }
+  }
+
+  return [...directMatches, ...fallbackMatches];
+}
+
+/**
+ * Intelligently infers canonical ProductCategory from product name, brand, model, or raw tags
+ */
+export function inferProductCategory(name?: string, brand?: string, rawCategory?: string): ProductCategory {
+  const normalizedRaw = (rawCategory || '').toLowerCase().trim();
+  const knownCategories: ProductCategory[] = [
+    'smartphones',
+    'electronics',
+    'audio-wearables',
+    'gaming',
+    'appliances',
+    'vehicles',
+    'cloud-software',
+    'home-garden',
+  ];
+  if (knownCategories.includes(normalizedRaw as ProductCategory)) {
+    return normalizedRaw as ProductCategory;
+  }
+
+  const combined = `${name || ''} ${brand || ''} ${rawCategory || ''}`.toLowerCase();
+
+  // 1. Audio & Wearables (tested early to prevent brand false positives)
+  if (
+    /headphone|earbud|earphone|airpod|galaxy buds|pixel buds|wh-1000|wf-1000|quietcomfort|bose|soundbar|speaker|neckband|smartwatch|apple watch|galaxy watch|fitbit|in-ear|over-ear|wireless ear/i.test(combined)
+  ) {
+    return 'audio-wearables';
+  }
+
+  // 2. Gaming Consoles & Hardware
+  if (
+    /playstation|ps5|ps4|ps3|xbox|nintendo|switch oled|steam deck|rog ally|dualsense|gamepad|gaming console/i.test(combined)
+  ) {
+    return 'gaming';
+  }
+
+  // 3. Smartphones & Mobile Devices
+  if (
+    /iphone|galaxy s\d|galaxy z|galaxy a\d|pixel \d|oneplus|xiaomi|redmi|realme|poco|vivo|oppo|motorola|smart\s*phone|cell\s*phone|mobile\s*phone/i.test(combined)
+  ) {
+    return 'smartphones';
+  }
+
+  // 4. Home & Kitchen Appliances
+  if (
+    /refrigerator|fridge|washing machine|microwave|oven|dishwasher|air conditioner|\bac\b|purifier|vacuum|geyser|chimney|blender|mixer grinder|toaster|induction|water purifier/i.test(combined)
+  ) {
+    return 'appliances';
+  }
+
+  // 5. Vehicles & Automotive
+  if (
+    /car\b|vehicle|motorcycle|scooter|electric scooter|ev\b|tesla|tata nexon|tata punch|ather|ola s1|tvs iqube/i.test(combined)
+  ) {
+    return 'vehicles';
+  }
+
+  // 6. Laptops, Computers & General Electronics
+  if (
+    /macbook|laptop|thinkpad|dell xps|ideapad|pavilion|desktop|monitor|tablet|ipad|kindle|pc\b|motherboard|gpu\b|graphic card|nvme/i.test(combined)
+  ) {
+    return 'electronics';
+  }
+
+  // 7. Software / Cloud
+  if (/software|saas|subscription|cloud|license|antivirus/i.test(combined)) {
+    return 'cloud-software';
+  }
+
+  return 'electronics';
 }
 
 /**

@@ -1,5 +1,7 @@
 import { SearchedProduct, RetailerListing, RetailerId } from '../types/shopping';
 import { VERIFIED_INDIAN_CATALOG } from '../../server/retailers/verifiedCatalog';
+import { cleanRetailerSearchQuery } from '../../server/retailers/baseAdapter';
+import { inferProductCategory } from '../engine/discovery';
 
 const RETAILER_CONFIGS: {
   id: RetailerId;
@@ -13,67 +15,71 @@ const RETAILER_CONFIGS: {
     name: 'Amazon India',
     logoText: 'Amazon.in',
     brandColor: '#FF9900',
-    buildFallbackUrl: (q) => `https://www.amazon.in/s?k=${encodeURIComponent(q)}`,
+    buildFallbackUrl: (q) => `https://www.amazon.in/s?k=${encodeURIComponent(cleanRetailerSearchQuery(q))}`,
   },
   {
     id: 'flipkart',
     name: 'Flipkart',
     logoText: 'Flipkart',
     brandColor: '#2874F0',
-    buildFallbackUrl: (q) => `https://www.flipkart.com/search?q=${encodeURIComponent(q)}`,
+    buildFallbackUrl: (q) => `https://www.flipkart.com/search?q=${encodeURIComponent(cleanRetailerSearchQuery(q))}`,
   },
   {
     id: 'croma',
     name: 'Croma',
     logoText: 'Croma',
     brandColor: '#00E5D9',
-    buildFallbackUrl: (q) => `https://www.croma.com/searchB?q=${encodeURIComponent(q)}%3Arelevance`,
+    buildFallbackUrl: (q) => `https://www.croma.com/searchB?q=${encodeURIComponent(cleanRetailerSearchQuery(q))}`,
   },
   {
     id: 'reliance-digital',
     name: 'Reliance Digital',
     logoText: 'Reliance',
     brandColor: '#E42529',
-    buildFallbackUrl: (q) => `https://www.reliancedigital.in/search?q=${encodeURIComponent(q)}`,
+    buildFallbackUrl: (q) => `https://www.reliancedigital.in/search?q=${encodeURIComponent(cleanRetailerSearchQuery(q))}`,
   },
   {
     id: 'vijay-sales',
     name: 'Vijay Sales',
     logoText: 'Vijay Sales',
     brandColor: '#C62828',
-    buildFallbackUrl: (q) => `https://www.vijaysales.com/search/${encodeURIComponent(q)}`,
+    buildFallbackUrl: (q) => {
+      const clean = cleanRetailerSearchQuery(q);
+      const slug = clean.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      return `https://www.vijaysales.com/search/${encodeURIComponent(slug)}`;
+    },
   },
   {
     id: 'tatacliq',
     name: 'Tata CLiQ',
     logoText: 'Tata CLiQ',
     brandColor: '#8E24AA',
-    buildFallbackUrl: (q) => `https://www.tatacliq.com/search/?searchCategory=all&text=${encodeURIComponent(q)}`,
+    buildFallbackUrl: (q) => `https://www.tatacliq.com/search/?searchCategory=all&text=${encodeURIComponent(cleanRetailerSearchQuery(q))}`,
   },
   {
     id: 'myntra',
     name: 'Myntra',
     logoText: 'Myntra',
     brandColor: '#FF3F6C',
-    buildFallbackUrl: (q) => `https://www.myntra.com/${encodeURIComponent(q)}`,
+    buildFallbackUrl: (q) => `https://www.myntra.com/${encodeURIComponent(cleanRetailerSearchQuery(q).toLowerCase().replace(/[^a-z0-9]+/g, '-'))}`,
   },
   {
     id: 'nykaa',
     name: 'Nykaa',
     logoText: 'Nykaa',
     brandColor: '#FC2779',
-    buildFallbackUrl: (q) => `https://www.nykaa.com/search/result/?q=${encodeURIComponent(q)}`,
+    buildFallbackUrl: (q) => `https://www.nykaa.com/search/result/?q=${encodeURIComponent(cleanRetailerSearchQuery(q))}`,
   },
   {
     id: 'official-store',
     name: 'Official Brand Store',
     logoText: 'Official Store',
     brandColor: '#374151',
-    buildFallbackUrl: (q) => `https://www.google.com/search?q=${encodeURIComponent(q + ' official store India buy online')}`,
+    buildFallbackUrl: (q) => `https://www.google.com/search?q=${encodeURIComponent(cleanRetailerSearchQuery(q) + ' official store India buy online')}`,
   },
 ];
 
-export function performClientCatalogSearch(queryText: string, barcode?: string): SearchedProduct {
+export function performClientCatalogSearch(queryText: string, barcode?: string, categoryHint?: string): SearchedProduct {
   const rawQuery = (queryText || '').trim();
   const normalizedQuery = rawQuery.toLowerCase();
   const barcodeQuery = (barcode || '').trim();
@@ -85,6 +91,11 @@ export function performClientCatalogSearch(queryText: string, barcode?: string):
     if (normalizedQuery.includes(prod.model.toLowerCase()) || normalizedQuery.includes(prod.name.toLowerCase())) return true;
     return false;
   });
+
+  const effectiveCategory =
+    catalogMatch?.category ||
+    inferProductCategory(rawQuery, catalogMatch?.brand, categoryHint) ||
+    'electronics';
 
   const allListings: RetailerListing[] = [];
 
@@ -153,7 +164,7 @@ export function performClientCatalogSearch(queryText: string, barcode?: string):
     name: catalogMatch?.name || rawQuery,
     brand: catalogMatch?.brand || 'Verified Retail Product',
     model: catalogMatch?.model || rawQuery,
-    category: catalogMatch?.category || 'electronics',
+    category: effectiveCategory,
     variant: catalogMatch?.variant,
     image: catalogMatch?.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80',
     barcode: barcode || catalogMatch?.barcode,

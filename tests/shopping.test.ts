@@ -5,6 +5,8 @@ import { AmazonIndiaAdapter } from '../server/retailers/adapters/amazonIndia';
 import { FlipkartAdapter } from '../server/retailers/adapters/flipkart';
 import { CromaAdapter } from '../server/retailers/adapters/croma';
 import { RetailerListing } from '../src/types/shopping';
+import { inferProductCategory, getSuggestionsForCategory } from '../src/engine/discovery';
+import { cleanRetailerSearchQuery } from '../server/retailers/baseAdapter';
 
 describe('VeraCost Smart Price Finder & Multi-Retailer Engine', () => {
   it('registers all 9 Indian market retailer adapters', () => {
@@ -31,18 +33,67 @@ describe('VeraCost Smart Price Finder & Multi-Retailer Engine', () => {
     expect(status.documentationUrl).toContain('amazon');
   });
 
-  it('generates authentic, HTTPS search fallback URLs for all retailers', () => {
+  it('generates clean, authentic HTTPS search fallback URLs for all retailers without bot-triggering parameters', () => {
     const amazon = new AmazonIndiaAdapter();
     const flipkart = new FlipkartAdapter();
     const croma = new CromaAdapter();
 
-    const amzUrl = amazon.buildSearchFallbackUrl('Sony WH-1000XM5');
-    const fkUrl = flipkart.buildSearchFallbackUrl('Sony WH-1000XM5');
-    const crUrl = croma.buildSearchFallbackUrl('Sony WH-1000XM5');
+    const amzUrl = amazon.buildSearchFallbackUrl('Sony WH-1000XM5 (Wireless)');
+    const fkUrl = flipkart.buildSearchFallbackUrl('Apple iPhone 16 Pro (128 GB)');
+    const crUrl = croma.buildSearchFallbackUrl('MacBook Pro 14" M3');
 
+    // Verify clean Amazon search URL without bot-triggering &ref= parameter
     expect(amzUrl.startsWith('https://www.amazon.in/s?k=')).toBe(true);
+    expect(amzUrl).not.toContain('&ref=veracost_price_finder');
+    expect(amzUrl).not.toContain('%28'); // Parentheses should be cleaned
+
+    // Verify clean Flipkart search URL without session-crashing parameters
     expect(fkUrl.startsWith('https://www.flipkart.com/search?q=')).toBe(true);
+    expect(fkUrl).not.toContain('otracker1=search');
+    expect(fkUrl).not.toContain('%28'); // (128 GB) should be cleaned
+
+    // Verify clean Croma URL
     expect(crUrl.startsWith('https://www.croma.com/searchB?q=')).toBe(true);
+    expect(crUrl).not.toContain('%22'); // Quotes should be cleaned
+  });
+
+  it('sanitizes product search strings with cleanRetailerSearchQuery', () => {
+    expect(cleanRetailerSearchQuery('Apple iPhone 16 Pro (128 GB)')).toBe('Apple iPhone 16 Pro');
+    expect(cleanRetailerSearchQuery('Apple MacBook Pro 14" M3 (512 GB SSD)')).toBe('Apple MacBook Pro 14 M3');
+    expect(cleanRetailerSearchQuery('Samsung Galaxy S24 Ultra 5G (Titanium Gray, 256 GB) [12 GB RAM]')).toBe('Samsung Galaxy S24 Ultra 5G');
+  });
+
+  it('infers correct ProductCategory from product name and brand', () => {
+    expect(inferProductCategory('Apple iPhone 16 Pro')).toBe('smartphones');
+    expect(inferProductCategory('Samsung Galaxy S24 Ultra')).toBe('smartphones');
+    expect(inferProductCategory('Sony WH-1000XM5 Wireless Headphones')).toBe('audio-wearables');
+    expect(inferProductCategory('AirPods Pro 2nd Gen')).toBe('audio-wearables');
+    expect(inferProductCategory('PlayStation 5 Slim Console')).toBe('gaming');
+    expect(inferProductCategory('Nintendo Switch OLED')).toBe('gaming');
+    expect(inferProductCategory('LG 260L Double Door Refrigerator')).toBe('appliances');
+    expect(inferProductCategory('IFB Front Load Washing Machine')).toBe('appliances');
+    expect(inferProductCategory('Apple MacBook Pro 14')).toBe('electronics');
+    expect(inferProductCategory('Ola S1 Pro Electric Scooter')).toBe('vehicles');
+  });
+
+  it('maps correct category accessories and does not assign laptop accessories to phones or audio', () => {
+    const phoneSuggestions = getSuggestionsForCategory('smartphones');
+    const phoneNames = phoneSuggestions.slice(0, 4).map((s) => s.name);
+    // Should contain charger brick, case, screen protector, carrier plan
+    expect(phoneNames.some((n) => n.includes('Charger') || n.includes('Case') || n.includes('Protection'))).toBe(true);
+    expect(phoneNames).not.toContain('Dongles, Adapters & Hubs');
+
+    const audioSuggestions = getSuggestionsForCategory('audio-wearables');
+    const audioNames = audioSuggestions.slice(0, 4).map((s) => s.name);
+    expect(audioNames.some((n) => n.includes('Case') || n.includes('Tips') || n.includes('Warranty'))).toBe(true);
+
+    const gameSuggestions = getSuggestionsForCategory('gaming');
+    const gameNames = gameSuggestions.slice(0, 4).map((s) => s.name);
+    expect(gameNames.some((n) => n.includes('Controller') || n.includes('Game Pass') || n.includes('Storage'))).toBe(true);
+
+    const appSuggestions = getSuggestionsForCategory('appliances');
+    const appNames = appSuggestions.slice(0, 4).map((s) => s.name);
+    expect(appNames.some((n) => n.includes('Installation') || n.includes('Utility') || n.includes('Filters'))).toBe(true);
   });
 
   it('contains verified benchmark products with real pricing and valid URLs', () => {

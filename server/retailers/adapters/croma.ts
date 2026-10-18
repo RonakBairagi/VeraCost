@@ -1,4 +1,4 @@
-import { BaseRetailerAdapter } from '../baseAdapter';
+import { BaseRetailerAdapter, cleanRetailerSearchQuery } from '../baseAdapter';
 import { RetailerId } from '../../../src/types/shopping';
 
 export class CromaAdapter extends BaseRetailerAdapter {
@@ -13,6 +13,7 @@ export class CromaAdapter extends BaseRetailerAdapter {
   }
 
   buildSearchFallbackUrl(query: string): string {
-    return `https://www.croma.com/searchB?q=${encodeURIComponent(query)}`;
+    const clean = cleanRetailerSearchQuery(query);
+    return `https://www.croma.com/searchB?q=${encodeURIComponent(clean)}`;
   }
 }

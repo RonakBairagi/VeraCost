@@ -12,7 +12,7 @@ import { NewComparisonModal } from './components/NewComparisonModal';
 import { DynamicBackground } from './components/DynamicBackground';
 import { SmartPriceFinder } from './components/shopping/SmartPriceFinder';
 import { calculateComparison } from './engine/calculator';
-import { getSuggestionsForCategory, createCostItemFromSuggestion } from './engine/discovery';
+import { getSuggestionsForCategory, createCostItemFromSuggestion, inferProductCategory } from './engine/discovery';
 
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<'landing' | 'shopping' | 'workspace' | 'saved'>('shopping');
@@ -111,7 +111,11 @@ export const App: React.FC = () => {
 
   // Bridge from Smart Price Finder into VeraCost Lifetime TCO Calculator
   const handleImportFromShopping = (optionPartial: Partial<ComparisonOption>) => {
-    const category = (optionPartial.category as ProductCategory) || 'electronics';
+    const rawCategory = optionPartial.category as string;
+    const inferred = inferProductCategory(optionPartial.name, optionPartial.brandOrModel, rawCategory);
+    const category = (optionPartial.category && optionPartial.category !== 'other' && optionPartial.category !== 'custom'
+      ? (optionPartial.category as ProductCategory)
+      : inferred) || inferred || 'electronics';
     const suggestions = getSuggestionsForCategory(category).slice(0, 4);
 
     const setupAndAccessories: CostItem[] = [];

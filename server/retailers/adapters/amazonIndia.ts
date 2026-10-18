@@ -1,4 +1,4 @@
-import { BaseRetailerAdapter } from '../baseAdapter';
+import { BaseRetailerAdapter, cleanRetailerSearchQuery } from '../baseAdapter';
 import { RetailerId, RetailerListing } from '../../../src/types/shopping';
 import { RetailerSearchQuery } from '../types';
 
@@ -14,7 +14,8 @@ export class AmazonIndiaAdapter extends BaseRetailerAdapter {
   }
 
   buildSearchFallbackUrl(query: string): string {
-    return `https://www.amazon.in/s?k=${encodeURIComponent(query)}&ref=veracost_price_finder`;
+    const cleanQuery = cleanRetailerSearchQuery(query);
+    return `https://www.amazon.in/s?k=${encodeURIComponent(cleanQuery)}`;
   }
 
   protected async queryLiveApi(query: RetailerSearchQuery): Promise<RetailerListing[] | null> {

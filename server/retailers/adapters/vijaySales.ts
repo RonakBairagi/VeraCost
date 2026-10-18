@@ -1,4 +1,4 @@
-import { BaseRetailerAdapter } from '../baseAdapter';
+import { BaseRetailerAdapter, cleanRetailerSearchQuery } from '../baseAdapter';
 import { RetailerId } from '../../../src/types/shopping';
 
 export class VijaySalesAdapter extends BaseRetailerAdapter {
@@ -13,7 +13,8 @@ export class VijaySalesAdapter extends BaseRetailerAdapter {
   }
 
   buildSearchFallbackUrl(query: string): string {
-    const slug = encodeURIComponent(query.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
-    return `https://www.vijaysales.com/search/${slug}`;
+    const clean = cleanRetailerSearchQuery(query);
+    const slug = clean.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return `https://www.vijaysales.com/search/${encodeURIComponent(slug)}`;
   }
 }

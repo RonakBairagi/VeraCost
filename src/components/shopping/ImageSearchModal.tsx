@@ -1,12 +1,24 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Upload, X, Image as ImageIcon, Camera, Sparkles, AlertCircle, Check, RefreshCw, SwitchCamera, ArrowLeft } from 'lucide-react';
 import { ImageRecognitionResult } from '../../types/shopping';
+import { ProductCategory } from '../../types/cost';
+import { inferProductCategory } from '../../engine/discovery';
 
 interface ImageSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onProductRecognized: (confirmedName: string, brand?: string, model?: string) => void;
+  onProductRecognized: (confirmedName: string, brand?: string, model?: string, category?: ProductCategory) => void;
 }
+
+export const CATEGORY_OPTIONS: { id: ProductCategory; label: string; icon: string }[] = [
+  { id: 'smartphones', label: 'Smartphones & Mobiles', icon: '📱' },
+  { id: 'audio-wearables', label: 'Audio & Wearables', icon: '🎧' },
+  { id: 'gaming', label: 'Gaming Consoles', icon: '🎮' },
+  { id: 'electronics', label: 'Laptops & Computers', icon: '💻' },
+  { id: 'appliances', label: 'Home Appliances', icon: '🏠' },
+  { id: 'vehicles', label: 'Vehicles & EV', icon: '🚗' },
+  { id: 'other', label: 'General / Custom', icon: '🛍️' },
+];
 
 export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
   isOpen,
@@ -17,7 +29,8 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
   const [mimeType, setMimeType] = useState<string>('image/jpeg');
   const [isProcessing, setIsProcessing] = useState(false);
   const [recognitionResult, setRecognitionResult] = useState<ImageRecognitionResult | null>(null);
-  const [confirmedName, setConfirmedName] = useState('Apple iPhone 16 Pro');
+  const [confirmedName, setConfirmedName] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<ProductCategory>('smartphones');
   const [error, setError] = useState<string | null>(null);
 
   // Live Camera state for Laptop & Mobile Webcams
@@ -70,7 +83,8 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
       stopCamera();
       setSelectedImage(null);
       setRecognitionResult(null);
-      setConfirmedName('Apple iPhone 16 Pro');
+      setConfirmedName('');
+      setSelectedCategory('smartphones');
       setError(null);
     }
   }, [isOpen, stopCamera]);
@@ -273,8 +287,8 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
       setSelectedImage(dataUrl);
       setMimeType('image/jpeg');
       setRecognitionResult(null);
-      setConfirmedName('Apple iPhone 16 Pro');
-      processImage(dataUrl, 'image/jpeg', 'Apple iPhone 16 Pro');
+      setConfirmedName('');
+      processImage(dataUrl, 'image/jpeg', '');
     } catch (snapErr: any) {
       setError(`Failed to capture photo: ${snapErr.message}. Please try again.`);
     }
@@ -297,9 +311,9 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
     setError(null);
     setMimeType('image/jpeg');
 
-    // Extract smart guess from filename if available (e.g. iphone_16_pro.jpg -> Apple iPhone 16 Pro)
+    // Extract smart guess from filename if available (e.g. sony_xm5.jpg -> Sony WH-1000XM5)
     const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ').trim();
-    let fileGuess = 'Apple iPhone 16 Pro';
+    let fileGuess = '';
     const fnLower = fileNameWithoutExt.toLowerCase();
     if (fnLower.includes('iphone') || fnLower.includes('16 pro') || fnLower.includes('apple')) {
       fileGuess = 'Apple iPhone 16 Pro';
@@ -307,12 +321,16 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
       fileGuess = 'Samsung Galaxy S24 Ultra';
     } else if (fnLower.includes('macbook') || fnLower.includes('m3') || fnLower.includes('laptop')) {
       fileGuess = 'Apple MacBook Pro 14"';
-    } else if (fnLower.includes('sony') || fnLower.includes('1000xm5') || fnLower.includes('headphone')) {
+    } else if (fnLower.includes('sony') || fnLower.includes('1000xm5') || fnLower.includes('headphone') || fnLower.includes('xm5')) {
       fileGuess = 'Sony WH-1000XM5';
     } else if (fnLower.includes('ps5') || fnLower.includes('playstation')) {
       fileGuess = 'Sony PlayStation 5 Slim';
     } else if (fileNameWithoutExt.length >= 3 && !/^[0-9]+$/.test(fileNameWithoutExt) && !/^img/i.test(fileNameWithoutExt)) {
       fileGuess = fileNameWithoutExt;
+    }
+
+    if (fileGuess) {
+      setSelectedCategory(inferProductCategory(fileGuess));
     }
 
     const reader = new FileReader();
@@ -329,7 +347,7 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const processImage = async (base64Full: string, type: string, initialGuess = 'Apple iPhone 16 Pro') => {
+  const processImage = async (base64Full: string, type: string, initialGuess = '') => {
     setIsProcessing(true);
     setError(null);
 
@@ -339,35 +357,46 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
       const resp = await fetch('/api/search/recognize-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: base64Clean, mimeType: type }),
+        body: JSON.stringify({ imageBase64: base64Clean, mimeType: type, hint: initialGuess }),
       });
 
       if (resp.ok) {
         const result: ImageRecognitionResult = await resp.json();
         setRecognitionResult(result);
         const nameToSet = result.detectedName || initialGuess;
-        setConfirmedName((prev) => (prev && prev !== 'Product in Photograph' ? prev : nameToSet));
+        if (nameToSet) {
+          setConfirmedName(nameToSet);
+          setSelectedCategory(inferProductCategory(nameToSet, result.brand, result.category));
+        } else if (result.category) {
+          setSelectedCategory(inferProductCategory('', '', result.category));
+        }
       } else {
-        // Fallback without throwing error
+        const cat = initialGuess ? inferProductCategory(initialGuess) : 'electronics';
         setRecognitionResult({
           success: true,
           detectedName: initialGuess,
-          category: 'smartphones',
-          confidence: 85,
+          category: cat,
+          confidence: initialGuess ? 85 : 65,
           attributes: ['Visual inspection captured', 'Ready for multi-retailer search'],
         });
-        setConfirmedName((prev) => (prev && prev !== 'Product in Photograph' ? prev : initialGuess));
+        if (initialGuess) {
+          setConfirmedName(initialGuess);
+          setSelectedCategory(cat);
+        }
       }
     } catch {
-      // Graceful local fallback
+      const cat = initialGuess ? inferProductCategory(initialGuess) : 'electronics';
       setRecognitionResult({
         success: true,
         detectedName: initialGuess,
-        category: 'smartphones',
-        confidence: 80,
+        category: cat,
+        confidence: initialGuess ? 75 : 60,
         attributes: ['Visual inspection captured'],
       });
-      setConfirmedName((prev) => (prev && prev !== 'Product in Photograph' ? prev : initialGuess));
+      if (initialGuess) {
+        setConfirmedName(initialGuess);
+        setSelectedCategory(cat);
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -375,7 +404,7 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
 
   const handleConfirmAndSearch = () => {
     if (!confirmedName.trim()) return;
-    onProductRecognized(confirmedName.trim(), recognitionResult?.brand, recognitionResult?.model);
+    onProductRecognized(confirmedName.trim(), recognitionResult?.brand, recognitionResult?.model, selectedCategory);
     onClose();
   };
 
@@ -383,7 +412,8 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
     stopCamera();
     setSelectedImage(null);
     setRecognitionResult(null);
-    setConfirmedName('Apple iPhone 16 Pro');
+    setConfirmedName('');
+    setSelectedCategory('smartphones');
     setError(null);
   };
 
@@ -737,11 +767,17 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
                     type="text"
                     className="input-box"
                     value={confirmedName}
-                    onChange={(e) => setConfirmedName(e.target.value)}
-                    placeholder="e.g. Sony WH-1000XM5 or iPhone 16 Pro"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setConfirmedName(val);
+                      if (val.trim()) {
+                        setSelectedCategory(inferProductCategory(val));
+                      }
+                    }}
+                    placeholder="e.g. Sony WH-1000XM5, iPhone 16 Pro, or PS5 Slim"
                   />
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
-                    You can edit the model name above or pick a quick suggestion below before searching retailers.
+                    Type the product model or pick from popular presets below:
                   </div>
 
                   {/* One-Tap Suggestion Chips */}
@@ -755,7 +791,10 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
                         <button
                           key={preset}
                           type="button"
-                          onClick={() => setConfirmedName(preset)}
+                          onClick={() => {
+                            setConfirmedName(preset);
+                            setSelectedCategory(inferProductCategory(preset));
+                          }}
                           style={{
                             padding: '0.25rem 0.65rem',
                             borderRadius: 'var(--radius-full)',
@@ -772,6 +811,46 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
                         </button>
                       );
                     })}
+                  </div>
+                </div>
+
+                {/* Product Category Selector */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--text-main)' }}>
+                    Product Category (determines TCO accessory recommendations)
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.4rem' }}>
+                    {CATEGORY_OPTIONS.map((cat) => {
+                      const isCatSelected = selectedCategory === cat.id;
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setSelectedCategory(cat.id)}
+                          style={{
+                            padding: '0.45rem 0.65rem',
+                            borderRadius: 'var(--radius-md)',
+                            fontSize: '0.78rem',
+                            fontWeight: isCatSelected ? 600 : 400,
+                            background: isCatSelected ? 'rgba(20, 184, 166, 0.16)' : 'var(--bg-elevated)',
+                            color: isCatSelected ? 'var(--teal-bright)' : 'var(--text-main)',
+                            border: `1.5px solid ${isCatSelected ? 'var(--teal-bright)' : 'var(--border-subtle)'}`,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.45rem',
+                            textAlign: 'left',
+                            transition: 'all var(--transition-fast)',
+                          }}
+                        >
+                          <span style={{ fontSize: '1rem' }}>{cat.icon}</span>
+                          <span>{cat.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                    Selected: <strong style={{ color: 'var(--teal-bright)' }}>{CATEGORY_OPTIONS.find((c) => c.id === selectedCategory)?.label || selectedCategory}</strong>. Matching accessories will be populated on import.
                   </div>
                 </div>
 
