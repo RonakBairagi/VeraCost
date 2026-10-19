@@ -163,7 +163,10 @@ searchRouter.post('/recognize-image', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Unsupported image format. Please upload JPEG, PNG, or WebP.' });
     }
 
-    const nebiusKey = process.env.NEBIUS_API_KEY;
+    const customKey = (req.headers['x-nebius-api-key'] as string) || req.body?.apiKey;
+    const nebiusKey = (customKey && customKey.trim() !== '' && !customKey.includes('your_'))
+      ? customKey.trim()
+      : process.env.NEBIUS_API_KEY;
     const isNebiusConfigured = Boolean(nebiusKey && nebiusKey.trim() !== '' && !nebiusKey.includes('your_'));
 
     // If Nebius or Vision provider is configured with multimodal support
@@ -248,14 +251,28 @@ Respond ONLY with a JSON object:
 
     // Dynamic, truthful response when Vision model is not configured or times out
     const userHint = typeof req.body?.hint === 'string' ? req.body.hint.trim() : '';
-    const inferredCat = userHint ? inferProductCategory(userHint) : 'electronics';
+    let matchedCatalog = VERIFIED_INDIAN_CATALOG.find((p) => {
+      if (!userHint) return false;
+      const lowerHint = userHint.toLowerCase();
+      return (
+        p.aliases.some((a) => lowerHint.includes(a) || a.includes(lowerHint)) ||
+        lowerHint.includes(p.name.toLowerCase()) ||
+        lowerHint.includes(p.model.toLowerCase())
+      );
+    });
+
+    const detectedName = matchedCatalog?.name || userHint || '';
+    const brand = matchedCatalog?.brand || '';
+    const model = matchedCatalog?.model || userHint || '';
+    const inferredCat = matchedCatalog?.category || (userHint ? inferProductCategory(userHint, brand) : 'smartphones');
+
     const result: ImageRecognitionResult = {
       success: true,
-      detectedName: userHint || '',
-      brand: '',
-      model: userHint || '',
+      detectedName,
+      brand,
+      model,
       category: inferredCat,
-      confidence: userHint ? 85 : 70,
+      confidence: detectedName ? 88 : 70,
       attributes: ['Visual snapshot captured', 'Select category & confirm model to compare live prices'],
       isAwaitingConfig: !isNebiusConfigured,
       message: isNebiusConfigured
@@ -271,7 +288,7 @@ Respond ONLY with a JSON object:
       detectedName: '',
       brand: '',
       model: '',
-      category: 'electronics',
+      category: 'smartphones',
       confidence: 60,
       attributes: ['Visual snapshot captured'],
       message: 'Photo captured! Confirm or enter the product model below to search retailers.',
@@ -346,6 +363,7 @@ searchRouter.post('/parse-url', async (req: Request, res: Response) => {
     res.json({
       success: true,
       domain: hostname,
+      productName: extractedTitle.slice(0, 100),
       extractedQuery: extractedTitle.slice(0, 100),
       originalUrl: url.trim(),
     });

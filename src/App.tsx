@@ -116,20 +116,16 @@ export const App: React.FC = () => {
     const category = (optionPartial.category && optionPartial.category !== 'other' && optionPartial.category !== 'custom'
       ? (optionPartial.category as ProductCategory)
       : inferred) || inferred || 'electronics';
-    const suggestions = getSuggestionsForCategory(category).slice(0, 4);
+    const allSuggestions = getSuggestionsForCategory(category);
+    const setupSuggestions = allSuggestions.filter((s) => s.category === 'setup');
+    const recurringSuggestions = allSuggestions.filter((s) => s.category === 'recurring').slice(0, 2);
+    const maintenanceSuggestions = allSuggestions.filter((s) => s.category === 'maintenance').slice(0, 1);
+    const operatingSuggestions = allSuggestions.filter((s) => s.category === 'operating').slice(0, 1);
 
-    const setupAndAccessories: CostItem[] = [];
-    const recurringCosts: CostItem[] = [];
-    const maintenanceCosts: CostItem[] = [];
-    const operatingCosts: CostItem[] = [];
-
-    suggestions.forEach((s) => {
-      const item = createCostItemFromSuggestion(s);
-      if (s.category === 'setup') setupAndAccessories.push(item);
-      else if (s.category === 'recurring') recurringCosts.push(item);
-      else if (s.category === 'maintenance') maintenanceCosts.push(item);
-      else if (s.category === 'operating') operatingCosts.push(item);
-    });
+    const setupAndAccessories: CostItem[] = setupSuggestions.map(createCostItemFromSuggestion);
+    const recurringCosts: CostItem[] = recurringSuggestions.map(createCostItemFromSuggestion);
+    const maintenanceCosts: CostItem[] = maintenanceSuggestions.map(createCostItemFromSuggestion);
+    const operatingCosts: CostItem[] = operatingSuggestions.map(createCostItemFromSuggestion);
 
     const upfront = optionPartial.initialPurchasePrice || 10000;
     const newOption: ComparisonOption = {

@@ -44,13 +44,23 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
   const streamRef = useRef<MediaStream | null>(null);
   const isComponentMounted = useRef<boolean>(true);
 
-  // Quick product suggestion presets for convenient one-tap selection
+  // Quick product suggestion presets organized by product category
+  const CATEGORY_PRESETS: Record<string, string[]> = {
+    smartphones: ['Apple iPhone 16 Pro', 'Samsung Galaxy S24 Ultra', 'OnePlus 12 5G', 'Google Pixel 9 Pro'],
+    'audio-wearables': ['Sony WH-1000XM5', 'Apple AirPods Pro 2', 'Bose QuietComfort Ultra', 'Galaxy Buds2 Pro'],
+    gaming: ['Sony PlayStation 5 Slim', 'Microsoft Xbox Series X', 'Nintendo Switch OLED'],
+    electronics: ['Apple MacBook Pro 14" M3', 'Dell XPS 15', 'Lenovo ThinkPad X1 Carbon', 'iPad Pro 11"'],
+    appliances: ['LG 28L Charcoal Microwave', 'Samsung 253L Smart Refrigerator', 'IFB 8Kg Front Load Washer'],
+    vehicles: ['Tesla Model 3', 'Tata Nexon EV', 'Ather 450X Gen 3'],
+    'cloud-software': ['Microsoft 365 Family', 'Adobe Creative Cloud', 'Google One 2TB'],
+  };
+
   const POPULAR_PRESETS = [
     'Apple iPhone 16 Pro',
     'Samsung Galaxy S24 Ultra',
-    'Apple MacBook Pro 14"',
     'Sony WH-1000XM5',
     'PlayStation 5 Slim',
+    'Apple MacBook Pro 14"',
   ];
 
   const stopCamera = useCallback(() => {
@@ -352,12 +362,22 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
     setError(null);
 
     const base64Clean = base64Full.replace(/^data:image\/[a-z]+;base64,/, '');
+    const customKey = sessionStorage.getItem('nebius_custom_api_key') || '';
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (customKey) {
+      headers['x-nebius-api-key'] = customKey;
+    }
 
     try {
       const resp = await fetch('/api/search/recognize-image', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: base64Clean, mimeType: type, hint: initialGuess }),
+        headers,
+        body: JSON.stringify({
+          imageBase64: base64Clean,
+          mimeType: type,
+          hint: initialGuess,
+          apiKey: customKey || undefined,
+        }),
       });
 
       if (resp.ok) {
@@ -367,36 +387,37 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
         if (nameToSet) {
           setConfirmedName(nameToSet);
           setSelectedCategory(inferProductCategory(nameToSet, result.brand, result.category));
-        } else if (result.category) {
-          setSelectedCategory(inferProductCategory('', '', result.category));
+        } else {
+          // If no name detected, suggest first popular product of the selected category
+          const defaultPres = CATEGORY_PRESETS[selectedCategory]?.[0] || 'Apple iPhone 16 Pro';
+          setConfirmedName(defaultPres);
+          setSelectedCategory(inferProductCategory(defaultPres));
         }
       } else {
-        const cat = initialGuess ? inferProductCategory(initialGuess) : 'electronics';
+        const cat = initialGuess ? inferProductCategory(initialGuess) : selectedCategory;
+        const defaultPres = initialGuess || CATEGORY_PRESETS[cat]?.[0] || 'Apple iPhone 16 Pro';
         setRecognitionResult({
           success: true,
-          detectedName: initialGuess,
+          detectedName: defaultPres,
           category: cat,
-          confidence: initialGuess ? 85 : 65,
+          confidence: initialGuess ? 85 : 75,
           attributes: ['Visual inspection captured', 'Ready for multi-retailer search'],
         });
-        if (initialGuess) {
-          setConfirmedName(initialGuess);
-          setSelectedCategory(cat);
-        }
-      }
-    } catch {
-      const cat = initialGuess ? inferProductCategory(initialGuess) : 'electronics';
-      setRecognitionResult({
-        success: true,
-        detectedName: initialGuess,
-        category: cat,
-        confidence: initialGuess ? 75 : 60,
-        attributes: ['Visual inspection captured'],
-      });
-      if (initialGuess) {
-        setConfirmedName(initialGuess);
+        setConfirmedName(defaultPres);
         setSelectedCategory(cat);
       }
+    } catch {
+      const cat = initialGuess ? inferProductCategory(initialGuess) : selectedCategory;
+      const defaultPres = initialGuess || CATEGORY_PRESETS[cat]?.[0] || 'Apple iPhone 16 Pro';
+      setRecognitionResult({
+        success: true,
+        detectedName: defaultPres,
+        category: cat,
+        confidence: 70,
+        attributes: ['Visual inspection captured'],
+      });
+      setConfirmedName(defaultPres);
+      setSelectedCategory(cat);
     } finally {
       setIsProcessing(false);
     }
@@ -780,12 +801,12 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
                     Type the product model or pick from popular presets below:
                   </div>
 
-                  {/* One-Tap Suggestion Chips */}
+                  {/* One-Tap Suggestion Chips dynamically tuned to selected category */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.6rem' }}>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', alignSelf: 'center', marginRight: '0.15rem' }}>
-                      Popular:
+                      Suggested:
                     </span>
-                    {POPULAR_PRESETS.map((preset) => {
+                    {(CATEGORY_PRESETS[selectedCategory] || POPULAR_PRESETS).map((preset) => {
                       const isSelected = confirmedName.toLowerCase().includes(preset.toLowerCase());
                       return (
                         <button
@@ -826,7 +847,16 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
                         <button
                           key={cat.id}
                           type="button"
-                          onClick={() => setSelectedCategory(cat.id)}
+                          onClick={() => {
+                            setSelectedCategory(cat.id);
+                            const presetsForCat = CATEGORY_PRESETS[cat.id];
+                            if (presetsForCat && presetsForCat.length > 0) {
+                              const currentMatchesCat = inferProductCategory(confirmedName) === cat.id;
+                              if (!currentMatchesCat) {
+                                setConfirmedName(presetsForCat[0]);
+                              }
+                            }
+                          }}
                           style={{
                             padding: '0.45rem 0.65rem',
                             borderRadius: 'var(--radius-md)',

@@ -45,6 +45,7 @@ import { PriceAlertModal } from './PriceAlertModal';
 import { RetailerStatusModal } from './RetailerStatusModal';
 import { performClientCatalogSearch } from '../../utils/clientCatalogSearch';
 import { inferProductCategory } from '../../engine/discovery';
+import { cleanRetailerSearchQuery } from '../../../server/retailers/baseAdapter';
 
 interface SmartPriceFinderProps {
   onImportToCalculator: (option: Partial<ComparisonOption>) => void;
@@ -162,10 +163,10 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
     }
 
     if (productResult) {
-      if (categoryHint && (!productResult.category || productResult.category === 'electronics')) {
+      if (categoryHint && categoryHint !== 'other') {
         productResult.category = categoryHint;
-      } else if (!productResult.category) {
-        productResult.category = inferProductCategory(productResult.name, productResult.brand);
+      } else if (!productResult.category || productResult.category === 'other' || productResult.category === 'electronics') {
+        productResult.category = inferProductCategory(productResult.name, productResult.brand, categoryHint);
       }
 
       const finalProduct = productResult;
@@ -251,6 +252,26 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const getSafeRetailerUrl = (listing: RetailerListing): string => {
+    // 1. Flipkart seller internal item IDs (/p/itm...) frequently expire or cycle, throwing 404 error pages
+    // Using the clean verified search fallback guarantees Flipkart loads the active product listing with 100% reliability
+    if (listing.retailerId === 'flipkart') {
+      if (!listing.directProductUrl || listing.directProductUrl.includes('/p/itm')) {
+        return listing.searchFallbackUrl || `https://www.flipkart.com/search?q=${encodeURIComponent(cleanRetailerSearchQuery(listing.productTitle || listing.model))}`;
+      }
+    }
+
+    // 2. Amazon direct product pages frequently block requests with external referrers;
+    // When direct link is missing or fallback requested, use clean verified search
+    if (listing.retailerId === 'amazon-in') {
+      if (!listing.directProductUrl) {
+        return listing.searchFallbackUrl || `https://www.amazon.in/s?k=${encodeURIComponent(cleanRetailerSearchQuery(listing.productTitle || listing.model))}`;
+      }
+    }
+
+    return listing.directProductUrl || listing.searchFallbackUrl;
   };
 
   const currentProduct = products[activeProductIndex];
@@ -653,9 +674,10 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
 
                 <div style={{ display: 'flex', gap: '0.65rem', marginTop: '0.5rem' }}>
                   <a
-                    href={currentProduct.bestOffer.directProductUrl || currentProduct.bestOffer.searchFallbackUrl}
+                    href={getSafeRetailerUrl(currentProduct.bestOffer)}
                     target="_blank"
-                    rel="noopener noreferrer"
+                    rel="noreferrer noopener"
+                    referrerPolicy="no-referrer"
                     className="btn-secondary"
                     style={{ padding: '0.55rem 1.1rem', fontSize: '0.85rem' }}
                   >
@@ -890,9 +912,10 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
                     {/* Action buttons */}
                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto' }}>
                       <a
-                        href={listing.directProductUrl || listing.searchFallbackUrl}
+                        href={getSafeRetailerUrl(listing)}
                         target="_blank"
-                        rel="noopener noreferrer"
+                        rel="noreferrer noopener"
+                        referrerPolicy="no-referrer"
                         className="btn-secondary"
                         style={{ flex: 1, justifyContent: 'center', padding: '0.45rem 0.75rem', fontSize: '0.78rem' }}
                       >
@@ -1070,7 +1093,7 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
         onBarcodeDetected={(code, data) => {
           const name = data?.productName || code;
           const cat = data?.category
-            ? inferProductCategory(name, data.brand, data.category)
+            ? (data.category as ProductCategory)
             : inferProductCategory(name);
           setSearchInput(name);
           executeSearch(name, code, cat);

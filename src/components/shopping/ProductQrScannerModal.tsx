@@ -157,8 +157,8 @@ export const ProductQrScannerModal: React.FC<ProductQrScannerModalProps> = ({
 
         if (parseResp.ok) {
           const data = await parseResp.json();
-          if (data && data.productName) {
-            resolvedName = data.productName;
+          if (data && (data.productName || data.extractedQuery)) {
+            resolvedName = data.productName || data.extractedQuery;
           }
         }
       } catch {

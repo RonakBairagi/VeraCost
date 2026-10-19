@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Camera, X, AlertCircle, RefreshCw, Barcode, CheckCircle2, SwitchCamera } from 'lucide-react';
+import { Camera, X, AlertCircle, RefreshCw, Barcode, CheckCircle2, SwitchCamera, Sparkles } from 'lucide-react';
 import { BarcodeLookupResult } from '../../types/shopping';
+import { ProductCategory } from '../../types/cost';
+import { CATEGORY_OPTIONS } from './ImageSearchModal';
+import { inferProductCategory } from '../../engine/discovery';
 import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 
 interface BarcodeScannerModalProps {
@@ -22,6 +25,11 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   const [manualCode, setManualCode] = useState('');
   const [detectedCode, setDetectedCode] = useState<string | null>(null);
   const [isLoadingLookup, setIsLoadingLookup] = useState(false);
+
+  // Unresolved barcode state (when barcode is not in public database)
+  const [unresolvedBarcode, setUnresolvedBarcode] = useState<string | null>(null);
+  const [unresolvedName, setUnresolvedName] = useState<string>('');
+  const [unresolvedCategory, setUnresolvedCategory] = useState<ProductCategory>('smartphones');
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -76,16 +84,22 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
         if (resp.ok) {
           const data: BarcodeLookupResult = await resp.json();
-          onBarcodeDetected(code, data);
-        } else {
-          onBarcodeDetected(code);
+          if (data && data.found && data.productName) {
+            onBarcodeDetected(code, data);
+            onClose();
+            return;
+          }
         }
       } catch {
-        onBarcodeDetected(code);
+        // Fallback to manual resolver
       } finally {
         setIsLoadingLookup(false);
-        onClose();
       }
+
+      // If barcode was not in database, show category & name confirmation
+      setUnresolvedBarcode(code);
+      setUnresolvedName('');
+      setUnresolvedCategory('smartphones');
     },
     [stopCamera, onBarcodeDetected, onClose]
   );
@@ -304,234 +318,355 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
           </button>
         </div>
 
-        {/* Camera Viewfinder */}
-        <div
-          style={{
-            position: 'relative',
-            width: '100%',
-            height: 300,
-            borderRadius: 'var(--radius-lg)',
-            overflow: 'hidden',
-            background: '#04070d',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '1px solid var(--border-medium)',
-            marginBottom: '1.25rem',
-          }}
-        >
-          {/* Always-mounted video element ensures clean ref binding */}
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              display: isScanning && !errorMessage ? 'block' : 'none',
-            }}
-          />
-
-          {/* Camera Starting / Spinner */}
-          {isCameraStarting && (
+        {unresolvedBarcode ? (
+          <div style={{ padding: '0.5rem 0' }}>
             <div
               style={{
-                position: 'absolute',
-                inset: 0,
+                padding: '0.85rem 1rem',
+                background: 'rgba(20, 184, 166, 0.1)',
+                border: '1px solid rgba(20, 184, 166, 0.25)',
+                borderRadius: 'var(--radius-lg)',
+                marginBottom: '1.25rem',
                 display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.75rem',
-                color: 'var(--teal-bright)',
-                background: '#04070d',
-              }}
-            >
-              <RefreshCw size={32} className="spin" />
-              <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
-                Connecting camera...
-              </div>
-            </div>
-          )}
-
-          {/* Camera Flip / Controls overlay */}
-          {isScanning && !errorMessage && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '0.75rem',
-                right: '0.75rem',
-                display: 'flex',
-                gap: '0.5rem',
-                zIndex: 10,
-              }}
-            >
-              <button
-                type="button"
-                onClick={toggleCameraFacing}
-                title="Switch front/back camera"
-                style={{
-                  background: 'rgba(0, 0, 0, 0.65)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  color: '#ffffff',
-                  borderRadius: 'var(--radius-full)',
-                  padding: '0.4rem 0.75rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  fontSize: '0.75rem',
-                  cursor: 'pointer',
-                  backdropFilter: 'blur(4px)',
-                }}
-              >
-                <SwitchCamera size={14} />
-                <span>{facingMode === 'environment' ? 'Rear Cam' : 'Front Cam'}</span>
-              </button>
-            </div>
-          )}
-
-          {/* Scanning Reticle Overlay */}
-          {isScanning && !errorMessage && (
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                pointerEvents: 'none',
-              }}
-            >
-              <div
-                style={{
-                  width: '80%',
-                  height: 150,
-                  border: '2px dashed var(--teal-bright)',
-                  borderRadius: 12,
-                  boxShadow: '0 0 25px rgba(20, 184, 166, 0.3), inset 0 0 15px rgba(20, 184, 166, 0.2)',
-                  position: 'relative',
-                }}
-              >
-                {/* Center scan line animation */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '5%',
-                    right: '5%',
-                    height: 2,
-                    background: 'var(--teal-bright)',
-                    boxShadow: '0 0 8px var(--teal-bright)',
-                  }}
-                />
-              </div>
-              <div
-                style={{
-                  marginTop: '0.75rem',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  color: '#ffffff',
-                  background: 'rgba(0, 0, 0, 0.65)',
-                  padding: '0.25rem 0.75rem',
-                  borderRadius: 'var(--radius-full)',
-                  backdropFilter: 'blur(4px)',
-                }}
-              >
-                Align product barcode inside frame
-              </div>
-            </div>
-          )}
-
-          {/* Loading lookup overlay */}
-          {isLoadingLookup && (
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                background: 'rgba(15, 23, 42, 0.88)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.75rem',
-                zIndex: 20,
-              }}
-            >
-              <RefreshCw size={28} className="spin" style={{ color: 'var(--teal-bright)' }} />
-              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)' }}>
-                Identified Barcode {detectedCode} — Fetching verified details...
-              </div>
-            </div>
-          )}
-
-          {/* Permission / Error / Fallback State */}
-          {errorMessage && (
-            <div
-              style={{
-                padding: '1.5rem',
-                textAlign: 'center',
-                display: 'flex',
-                flexDirection: 'column',
                 alignItems: 'center',
                 gap: '0.75rem',
-                zIndex: 10,
               }}
             >
-              <AlertCircle size={32} style={{ color: 'var(--amber-warning)' }} />
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: 420 }}>
-                {errorMessage}
+              <CheckCircle2 size={24} style={{ color: 'var(--teal-bright)', flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                  Barcode Identified: <span style={{ fontFamily: 'monospace', color: 'var(--teal-bright)' }}>{unresolvedBarcode}</span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  Confirm product category to find live Indian retailer offers and assign accurate accessories:
+                </div>
               </div>
+            </div>
+
+            {/* Product Category Selector */}
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.45rem', color: 'var(--text-main)' }}>
+                Product Category (determines TCO accessory recommendations)
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.45rem' }}>
+                {CATEGORY_OPTIONS.map((cat) => {
+                  const isSelected = unresolvedCategory === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setUnresolvedCategory(cat.id)}
+                      style={{
+                        padding: '0.45rem 0.65rem',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.78rem',
+                        fontWeight: isSelected ? 600 : 400,
+                        background: isSelected ? 'rgba(20, 184, 166, 0.16)' : 'var(--bg-elevated)',
+                        color: isSelected ? 'var(--teal-bright)' : 'var(--text-main)',
+                        border: `1.5px solid ${isSelected ? 'var(--teal-bright)' : 'var(--border-subtle)'}`,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <span style={{ fontSize: '1rem' }}>{cat.icon}</span>
+                      <span>{cat.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Product Model Name */}
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem', color: 'var(--text-main)' }}>
+                Product Name / Model (Optional)
+              </label>
+              <input
+                type="text"
+                className="input-box"
+                placeholder="e.g. iPhone 16 Pro, Sony WH-1000XM5, or Samsung S24"
+                value={unresolvedName}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setUnresolvedName(val);
+                  if (val.trim()) {
+                    setUnresolvedCategory(inferProductCategory(val));
+                  }
+                }}
+              />
+            </div>
+
+            {/* Submit or Scan Again Actions */}
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={startCamera}
-                style={{ padding: '0.45rem 1rem', fontSize: '0.82rem' }}
+                onClick={() => {
+                  setUnresolvedBarcode(null);
+                  startCamera();
+                }}
               >
-                <RefreshCw size={14} />
-                Try Camera Again
+                Scan Another Barcode
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => {
+                  const finalName = unresolvedName.trim() || `Product ${unresolvedBarcode}`;
+                  onBarcodeDetected(unresolvedBarcode, {
+                    found: true,
+                    barcode: unresolvedBarcode,
+                    productName: finalName,
+                    category: unresolvedCategory,
+                    source: 'Verified Barcode Scan',
+                  });
+                  onClose();
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, var(--teal-bright), var(--emerald-success))',
+                  fontWeight: 600,
+                }}
+              >
+                <CheckCircle2 size={16} />
+                Search Retailers & Accessories
               </button>
             </div>
-          )}
-        </div>
-
-        {/* Manual Barcode Fallback Form */}
-        <div>
-          <label
-            style={{
-              display: 'block',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              color: 'var(--text-main)',
-              marginBottom: '0.4rem',
-            }}
-          >
-            Or Enter Barcode Number Manually
-          </label>
-          <form onSubmit={handleManualSubmit} style={{ display: 'flex', gap: '0.65rem' }}>
-            <input
-              type="text"
-              className="input-box"
-              placeholder="e.g. 0195949791484 or 8806095368948"
-              value={manualCode}
-              onChange={(e) => setManualCode(e.target.value.replace(/[^0-9]/g, ''))}
-              style={{ flex: 1, fontFamily: 'monospace' }}
-            />
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={!manualCode.trim()}
-              style={{ padding: '0.55rem 1.25rem', whiteSpace: 'nowrap' }}
-            >
-              Look Up
-            </button>
-          </form>
-          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-            Supports EAN-13, EAN-8, UPC-A, and UPC-E codes found on consumer electronics, smartphones, and retail packaging.
           </div>
-        </div>
+        ) : (
+          <>
+            {/* Camera Viewfinder */}
+            <div
+              style={{
+                position: 'relative',
+                width: '100%',
+                height: 300,
+                borderRadius: 'var(--radius-lg)',
+                overflow: 'hidden',
+                background: '#04070d',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px solid var(--border-medium)',
+                marginBottom: '1.25rem',
+              }}
+            >
+              {/* Always-mounted video element ensures clean ref binding */}
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: isScanning && !errorMessage ? 'block' : 'none',
+                }}
+              />
+
+              {/* Camera Starting / Spinner */}
+              {isCameraStarting && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.75rem',
+                    color: 'var(--teal-bright)',
+                    background: '#04070d',
+                  }}
+                >
+                  <RefreshCw size={32} className="spin" />
+                  <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                    Connecting camera...
+                  </div>
+                </div>
+              )}
+
+              {/* Camera Flip / Controls overlay */}
+              {isScanning && !errorMessage && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '0.75rem',
+                    right: '0.75rem',
+                    display: 'flex',
+                    gap: '0.5rem',
+                    zIndex: 10,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={toggleCameraFacing}
+                    title="Switch front/back camera"
+                    style={{
+                      background: 'rgba(0, 0, 0, 0.65)',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      color: '#ffffff',
+                      borderRadius: 'var(--radius-full)',
+                      padding: '0.4rem 0.75rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      backdropFilter: 'blur(4px)',
+                    }}
+                  >
+                    <SwitchCamera size={14} />
+                    <span>{facingMode === 'environment' ? 'Rear Cam' : 'Front Cam'}</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Scanning Reticle Overlay */}
+              {isScanning && !errorMessage && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '80%',
+                      height: 150,
+                      border: '2px dashed var(--teal-bright)',
+                      borderRadius: 12,
+                      boxShadow: '0 0 25px rgba(20, 184, 166, 0.3), inset 0 0 15px rgba(20, 184, 166, 0.2)',
+                      position: 'relative',
+                    }}
+                  >
+                    {/* Center scan line animation */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '5%',
+                        right: '5%',
+                        height: 2,
+                        background: 'var(--teal-bright)',
+                        boxShadow: '0 0 8px var(--teal-bright)',
+                      }}
+                    />
+                  </div>
+                  <div
+                    style={{
+                      marginTop: '0.75rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: '#ffffff',
+                      background: 'rgba(0, 0, 0, 0.65)',
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: 'var(--radius-full)',
+                      backdropFilter: 'blur(4px)',
+                    }}
+                  >
+                    Align product barcode inside frame
+                  </div>
+                </div>
+              )}
+
+              {/* Loading lookup overlay */}
+              {isLoadingLookup && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'rgba(15, 23, 42, 0.88)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.75rem',
+                    zIndex: 20,
+                  }}
+                >
+                  <RefreshCw size={28} className="spin" style={{ color: 'var(--teal-bright)' }} />
+                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                    Identified Barcode {detectedCode} — Fetching verified details...
+                  </div>
+                </div>
+              )}
+
+              {/* Permission / Error / Fallback State */}
+              {errorMessage && (
+                <div
+                  style={{
+                    padding: '1.5rem',
+                    textAlign: 'center',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    zIndex: 10,
+                  }}
+                >
+                  <AlertCircle size={32} style={{ color: 'var(--amber-warning)' }} />
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: 420 }}>
+                    {errorMessage}
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={startCamera}
+                    style={{ padding: '0.45rem 1rem', fontSize: '0.82rem' }}
+                  >
+                    <RefreshCw size={14} />
+                    Try Camera Again
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Manual Barcode Fallback Form */}
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  color: 'var(--text-main)',
+                  marginBottom: '0.4rem',
+                }}
+              >
+                Or Enter Barcode Number Manually
+              </label>
+              <form onSubmit={handleManualSubmit} style={{ display: 'flex', gap: '0.65rem' }}>
+                <input
+                  type="text"
+                  className="input-box"
+                  placeholder="e.g. 0195949791484 or 8806095368948"
+                  value={manualCode}
+                  onChange={(e) => setManualCode(e.target.value.replace(/[^0-9]/g, ''))}
+                  style={{ flex: 1, fontFamily: 'monospace' }}
+                />
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={!manualCode.trim()}
+                  style={{ padding: '0.55rem 1.25rem', whiteSpace: 'nowrap' }}
+                >
+                  Look Up
+                </button>
+              </form>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                Supports EAN-13, EAN-8, UPC-A, and UPC-E codes found on consumer electronics, smartphones, and retail packaging.
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

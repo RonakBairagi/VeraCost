@@ -217,37 +217,48 @@ export const DISCOVERY_CATALOG: DiscoverySuggestion[] = [
 
   // --- Smartphones & Mobile Devices ---
   {
-    id: 'disc-phone-charger',
-    name: 'USB-C Fast Charger Brick & Braided Cable',
-    category: 'setup',
-    frequency: 'one-time',
-    defaultAmount: 39,
-    description: 'High-wattage (30W-65W) power adapter no longer included in smartphone retail boxes.',
-    relevance: 'Required for fast charging modern iPhones, Samsung Galaxy, and Pixel devices.',
-    typicalRange: '$20 – $55',
-    applicableProductCategories: ['smartphones', 'electronics', 'custom'],
-  },
-  {
     id: 'disc-phone-protection',
-    name: 'Drop-Proof Case & Tempered Glass Screen Protector',
+    name: 'Drop-Proof Armor Case & 9H Screen Protector',
     category: 'setup',
     frequency: 'one-time',
     defaultAmount: 49,
-    description: 'Military-grade shock protection and oleophobic anti-scratch glass shield.',
-    relevance: 'Modern glass-backed smartphones cost $200–$400 for back/front panel repair without protection.',
+    description: 'Military-grade shock protection case and oleophobic anti-scratch tempered glass shield.',
+    relevance: 'Essential upfront protection; flagship smartphone screen and rear glass replacements easily exceed $250-$400.',
     typicalRange: '$25 – $80',
-    applicableProductCategories: ['smartphones', 'custom'],
+    applicableProductCategories: ['smartphones'],
+  },
+  {
+    id: 'disc-phone-charger',
+    name: 'USB-C GaN 35W/65W Fast Charger & Braided Cable',
+    category: 'setup',
+    frequency: 'one-time',
+    defaultAmount: 39,
+    description: 'High-wattage GaN power adapter no longer bundled inside smartphone retail packaging.',
+    relevance: 'Required for fast charging modern iPhones, Samsung Galaxy, and Pixel devices.',
+    typicalRange: '$25 – $60',
+    applicableProductCategories: ['smartphones'],
+  },
+  {
+    id: 'disc-phone-wireless',
+    name: 'Magnetic Qi2 / MagSafe Wireless Desk Stand',
+    category: 'setup',
+    frequency: 'one-time',
+    defaultAmount: 45,
+    description: 'Convenient 15W magnetic rapid charging stand for bedside or work desk.',
+    relevance: 'Reduces port wear and enables convenient hands-free viewing and standby clock mode.',
+    typicalRange: '$30 – $75',
+    applicableProductCategories: ['smartphones'],
   },
   {
     id: 'disc-phone-insurance',
-    name: 'Smartphone Protection Plan (AppleCare+ / Samsung Care+)',
+    name: 'Smartphone Care & Screen Damage Protection Plan',
     category: 'recurring',
     frequency: 'monthly',
     defaultAmount: 11.49,
-    description: 'Accidental damage repair coverage, battery replacement, and theft/loss protection.',
+    description: 'Accidental damage repair coverage, battery health replacement, and fast replacement.',
     relevance: 'Crucial for flagship phones valued over $900 with high OLED display replacement costs.',
     typicalRange: '$8 – $16 / mo',
-    applicableProductCategories: ['smartphones', 'electronics'],
+    applicableProductCategories: ['smartphones'],
   },
   {
     id: 'disc-phone-plan',
@@ -256,7 +267,7 @@ export const DISCOVERY_CATALOG: DiscoverySuggestion[] = [
     frequency: 'monthly',
     defaultAmount: 55,
     description: 'Unlimited 5G connectivity, hotspot data, and mobile carrier line access.',
-    relevance: 'Over 2–3 years, carrier service fees ($1,300–$2,200) easily exceed the purchase price of the phone.',
+    relevance: 'Over 2–3 years, carrier service fees easily exceed the purchase price of the phone.',
     typicalRange: '$35 – $85 / mo',
     applicableProductCategories: ['smartphones'],
   },
@@ -280,65 +291,120 @@ export const DISCOVERY_CATALOG: DiscoverySuggestion[] = [
     description: '200GB cloud storage tier for full-resolution camera roll backup and WhatsApp sync.',
     relevance: 'Necessary when opting for base smartphone storage tiers (128GB/256GB).',
     typicalRange: '$1.99 – $9.99 / mo',
-    applicableProductCategories: ['smartphones', 'cloud-software'],
+    applicableProductCategories: ['smartphones'],
   },
 
   // --- Audio, Wearables & Tech ---
   {
     id: 'disc-wear-case',
-    name: 'Earbuds Protective Silicone Case & Cleaning Kit',
+    name: 'Protective Armor Carrying Case & Carabiner',
     category: 'setup',
     frequency: 'one-time',
     defaultAmount: 25,
-    description: 'Anti-scratch silicone charging case sleeve, carabiner, and acoustic putty brush.',
-    relevance: 'Prevents wireless charging case scuffs and micro-lint acoustic grill blockages.',
+    description: 'Shock-absorbing hard shell / silicone case sleeve with clip for wireless charging cases or headphones.',
+    relevance: 'Prevents charging case scuffs, lid hinge damage, and accidental drops.',
     typicalRange: '$15 – $40',
-    applicableProductCategories: ['audio-wearables', 'electronics'],
+    applicableProductCategories: ['audio-wearables'],
   },
   {
     id: 'disc-wear-eartips',
-    name: 'Replacement Memory Foam / Silicone Ear Tips',
-    category: 'operating',
-    frequency: 'annual',
-    defaultAmount: 18,
-    description: 'Comfort memory foam tips and acoustic mesh seals that degrade with ear canal oils.',
-    relevance: 'Restores active noise cancellation (ANC) seal and bass response.',
-    typicalRange: '$12 – $30 / yr',
+    name: 'Replacement Memory Foam & Noise-Isolating Ear Tips',
+    category: 'setup',
+    frequency: 'one-time',
+    defaultAmount: 19,
+    description: 'Multi-size memory foam tips and acoustic mesh seals that degrade with natural ear canal oils.',
+    relevance: 'Restores active noise cancellation (ANC) seal, comfort, and deep bass response.',
+    typicalRange: '$12 – $30',
+    applicableProductCategories: ['audio-wearables'],
+  },
+  {
+    id: 'disc-wear-clean',
+    name: 'Acoustic Audio Mesh & Sensor Cleaning Pen',
+    category: 'setup',
+    frequency: 'one-time',
+    defaultAmount: 15,
+    description: 'Specialized microfiber acoustic brush and putty to remove wax and dust buildup.',
+    relevance: 'Prevents severe volume degradation and microphone blockage in earbuds and headphones.',
+    typicalRange: '$10 – $25',
+    applicableProductCategories: ['audio-wearables'],
+  },
+  {
+    id: 'disc-wear-loss',
+    name: 'Single Earbud Loss & Hardware Damage Protection',
+    category: 'recurring',
+    frequency: 'monthly',
+    defaultAmount: 4.99,
+    description: 'Insurance coverage against losing individual left/right buds or charging cases.',
+    relevance: 'Individual OEM replacement buds cost up to 50% of the original pair retail price.',
+    typicalRange: '$3 – $8 / mo',
+    applicableProductCategories: ['audio-wearables'],
+  },
+  {
+    id: 'disc-wear-battery',
+    name: 'Earbud / Headphone Battery Degradation Servicing',
+    category: 'maintenance',
+    frequency: 'one-time',
+    defaultAmount: 69,
+    description: 'Mid-cycle micro-cell battery swap after 500+ charge cycles.',
+    relevance: 'True wireless earbud batteries typically degrade noticeably after 18-24 months.',
+    typicalRange: '$49 – $89',
     applicableProductCategories: ['audio-wearables'],
   },
 
   // --- Gaming & Consoles ---
   {
     id: 'disc-game-controller',
-    name: 'Secondary Wireless Controller',
+    name: 'Secondary DualSense / Wireless Game Controller',
     category: 'setup',
     frequency: 'one-time',
     defaultAmount: 69,
-    description: 'Official gamepad for local co-op multiplayer and backup rotation.',
+    description: 'Official gamepad for local co-op multiplayer and battery backup rotation.',
     relevance: 'Standard retail packages include only a single controller.',
-    typicalRange: '$50 – $80',
-    applicableProductCategories: ['gaming'],
-  },
-  {
-    id: 'disc-game-sub',
-    name: 'Online Gaming Network (Game Pass / PS Plus)',
-    category: 'recurring',
-    frequency: 'annual',
-    defaultAmount: 119,
-    description: 'Multiplayer cloud network access, monthly game catalog, and cloud saves.',
-    relevance: 'Mandatory to play online multiplayer titles on modern consoles.',
-    typicalRange: '$60 – $180 / yr',
+    typicalRange: '$55 – $80',
     applicableProductCategories: ['gaming'],
   },
   {
     id: 'disc-game-storage',
-    name: 'High-Speed NVMe Storage Expansion',
+    name: 'High-Speed 1TB-2TB M.2 NVMe SSD Heatsink Storage',
     category: 'setup',
     frequency: 'one-time',
-    defaultAmount: 110,
-    description: '1TB-2TB M.2 PCIe Gen4 NVMe SSD with heatsink for modern 100GB+ game titles.',
-    relevance: 'Factory internal storage usually fills up within 4–6 installed AAA games.',
+    defaultAmount: 119,
+    description: 'PCIe Gen4 NVMe internal solid state drive expansion for 100GB+ AAA game titles.',
+    relevance: 'Console factory internal storage fills up quickly within 4–6 installed games.',
     typicalRange: '$80 – $180',
+    applicableProductCategories: ['gaming'],
+  },
+  {
+    id: 'disc-game-dock',
+    name: 'Dual Controller Rapid Charging Dock & Cooling Base',
+    category: 'setup',
+    frequency: 'one-time',
+    defaultAmount: 35,
+    description: 'Docking station that charges two controllers simultaneously with LED status indicators.',
+    relevance: 'Keeps gamepads organized, fully charged, and frees up front console USB ports.',
+    typicalRange: '$25 – $50',
+    applicableProductCategories: ['gaming'],
+  },
+  {
+    id: 'disc-game-headset',
+    name: '3D Spatial Audio Low-Latency Gaming Headset',
+    category: 'setup',
+    frequency: 'one-time',
+    defaultAmount: 89,
+    description: 'Over-ear gaming headset with noise-cancelling boom microphone and spatial surround audio.',
+    relevance: 'Essential for clear multiplayer voice communication and competitive sound staging.',
+    typicalRange: '$50 – $150',
+    applicableProductCategories: ['gaming'],
+  },
+  {
+    id: 'disc-game-sub',
+    name: 'Online Gaming Network & Catalog (PS Plus / Game Pass)',
+    category: 'recurring',
+    frequency: 'annual',
+    defaultAmount: 119,
+    description: 'Multiplayer cloud network access, rotating game catalog, and cloud save storage.',
+    relevance: 'Mandatory to play online multiplayer titles on modern consoles.',
+    typicalRange: '$60 – $180 / yr',
     applicableProductCategories: ['gaming'],
   },
 
@@ -352,7 +418,7 @@ export const DISCOVERY_CATALOG: DiscoverySuggestion[] = [
     description: 'Cross-border shipping tariffs, handling, and parcel insurance.',
     relevance: 'Often omitted until the final checkout or customs invoice.',
     typicalRange: '$15 – $150',
-    applicableProductCategories: ['other', 'custom', 'home-garden', 'electronics'],
+    applicableProductCategories: ['other', 'custom'],
   },
   {
     id: 'disc-gen-warranty',
@@ -385,30 +451,33 @@ export const DISCOVERY_CATALOG: DiscoverySuggestion[] = [
     description: 'Hazardous materials disposal, certified recycling, or municipal bulky haul away.',
     relevance: 'Mandatory in several jurisdictions for heavy electronics and refrigerants.',
     typicalRange: '$20 – $90',
-    applicableProductCategories: ['other', 'custom', 'electronics', 'appliances'],
+    applicableProductCategories: ['other', 'custom'],
   },
 ];
 
 /**
  * Filter discovery suggestions suitable for a specific product category.
- * Prioritizes direct category matches before general fallbacks.
+ * Prioritizes direct category matches and setup accessories first.
  */
 export function getSuggestionsForCategory(category: ProductCategory): DiscoverySuggestion[] {
-  const directMatches: DiscoverySuggestion[] = [];
-  const fallbackMatches: DiscoverySuggestion[] = [];
+  const directMatches = DISCOVERY_CATALOG.filter((item) =>
+    item.applicableProductCategories.includes(category)
+  );
 
-  for (const item of DISCOVERY_CATALOG) {
-    if (item.applicableProductCategories.includes(category)) {
-      directMatches.push(item);
-    } else if (
-      item.applicableProductCategories.includes('custom') ||
-      item.applicableProductCategories.includes('other')
-    ) {
-      fallbackMatches.push(item);
-    }
+  // If we have direct category matches, sort setup items (accessories) first!
+  if (directMatches.length > 0) {
+    const setupItems = directMatches.filter((i) => i.category === 'setup');
+    const otherItems = directMatches.filter((i) => i.category !== 'setup');
+    return [...setupItems, ...otherItems];
   }
 
-  return [...directMatches, ...fallbackMatches];
+  // Fallback for custom/other categories
+  const fallbackMatches = DISCOVERY_CATALOG.filter(
+    (item) =>
+      item.applicableProductCategories.includes('custom') ||
+      item.applicableProductCategories.includes('other')
+  );
+  return fallbackMatches;
 }
 
 /**
@@ -432,23 +501,23 @@ export function inferProductCategory(name?: string, brand?: string, rawCategory?
 
   const combined = `${name || ''} ${brand || ''} ${rawCategory || ''}`.toLowerCase();
 
-  // 1. Audio & Wearables (tested early to prevent brand false positives)
+  // 1. Audio & Wearables (tested first to avoid brand ambiguity e.g. "Sony WH-1000XM5" or "Apple AirPods")
   if (
-    /headphone|earbud|earphone|airpod|galaxy buds|pixel buds|wh-1000|wf-1000|quietcomfort|bose|soundbar|speaker|neckband|smartwatch|apple watch|galaxy watch|fitbit|in-ear|over-ear|wireless ear/i.test(combined)
+    /headphone|headset|earbud|earphone|airpod|galaxy buds|pixel buds|wh-1000|wf-1000|quietcomfort|bose|soundbar|speaker|neckband|smartwatch|apple watch|galaxy watch|fitbit|in-ear|over-ear|wireless ear|audio|xm4|xm5/i.test(combined)
   ) {
     return 'audio-wearables';
   }
 
-  // 2. Gaming Consoles & Hardware
+  // 2. Gaming Consoles & Hardware (tested before electronics e.g. "Sony PlayStation 5")
   if (
-    /playstation|ps5|ps4|ps3|xbox|nintendo|switch oled|steam deck|rog ally|dualsense|gamepad|gaming console/i.test(combined)
+    /playstation|ps5|ps4|ps3|xbox|nintendo|switch oled|steam deck|rog ally|dualsense|gamepad|gaming console|controller/i.test(combined)
   ) {
     return 'gaming';
   }
 
   // 3. Smartphones & Mobile Devices
   if (
-    /iphone|galaxy s\d|galaxy z|galaxy a\d|pixel \d|oneplus|xiaomi|redmi|realme|poco|vivo|oppo|motorola|smart\s*phone|cell\s*phone|mobile\s*phone/i.test(combined)
+    /iphone|galaxy s\d|galaxy z|galaxy a\d|galaxy note|pixel \d|oneplus|xiaomi|redmi|realme|poco|vivo|oppo|motorola|moto g|iqoo|smart\s*phone|cell\s*phone|mobile\s*phone/i.test(combined)
   ) {
     return 'smartphones';
   }
@@ -469,7 +538,7 @@ export function inferProductCategory(name?: string, brand?: string, rawCategory?
 
   // 6. Laptops, Computers & General Electronics
   if (
-    /macbook|laptop|thinkpad|dell xps|ideapad|pavilion|desktop|monitor|tablet|ipad|kindle|pc\b|motherboard|gpu\b|graphic card|nvme/i.test(combined)
+    /macbook|laptop|thinkpad|dell xps|ideapad|pavilion|desktop|monitor|tablet|ipad|kindle|pc\b|motherboard|gpu\b|graphic card|nvme|ultrabook/i.test(combined)
   ) {
     return 'electronics';
   }
