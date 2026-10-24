@@ -1,8 +1,24 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Upload, X, Image as ImageIcon, Camera, Sparkles, AlertCircle, Check, RefreshCw, SwitchCamera, ArrowLeft } from 'lucide-react';
-import { ImageRecognitionResult } from '../../types/shopping';
+import { 
+  Upload, 
+  X, 
+  Image as ImageIcon, 
+  Camera, 
+  Sparkles, 
+  AlertCircle, 
+  Check, 
+  RefreshCw, 
+  SwitchCamera, 
+  ArrowLeft,
+  ExternalLink,
+  Layers,
+  Crop,
+  Search
+} from 'lucide-react';
+import { ImageRecognitionResult, DetectedCandidateObject } from '../../types/shopping';
 import { ProductCategory } from '../../types/cost';
 import { inferProductCategory } from '../../engine/discovery';
+import { BarcodeScannerEngine } from '../../services/barcodeScannerEngine';
 
 interface ImageSearchModalProps {
   isOpen: boolean;
@@ -33,13 +49,15 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>('smartphones');
   const [error, setError] = useState<string | null>(null);
 
+  // Selected candidate object (when photo contains multiple items)
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
+
   // Live Camera state for Laptop & Mobile Webcams
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isCameraStarting, setIsCameraStarting] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const isComponentMounted = useRef<boolean>(true);
@@ -52,16 +70,7 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
     electronics: ['Apple MacBook Pro 14" M3', 'Dell XPS 15', 'Lenovo ThinkPad X1 Carbon', 'iPad Pro 11"'],
     appliances: ['LG 28L Charcoal Microwave', 'Samsung 253L Smart Refrigerator', 'IFB 8Kg Front Load Washer'],
     vehicles: ['Tesla Model 3', 'Tata Nexon EV', 'Ather 450X Gen 3'],
-    'cloud-software': ['Microsoft 365 Family', 'Adobe Creative Cloud', 'Google One 2TB'],
   };
-
-  const POPULAR_PRESETS = [
-    'Apple iPhone 16 Pro',
-    'Samsung Galaxy S24 Ultra',
-    'Sony WH-1000XM5',
-    'PlayStation 5 Slim',
-    'Apple MacBook Pro 14"',
-  ];
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -87,7 +96,6 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
     };
   }, [stopCamera]);
 
-  // If modal closes, reset state and stop camera
   useEffect(() => {
     if (!isOpen) {
       stopCamera();
@@ -95,66 +103,22 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
       setRecognitionResult(null);
       setConfirmedName('');
       setSelectedCategory('smartphones');
+      setSelectedCandidateId(null);
       setError(null);
     }
   }, [isOpen, stopCamera]);
-
-  if (!isOpen) return null;
-
-  // Multi-tier camera stream acquisition that works reliably on laptops and mobile devices
-  const acquireCameraStream = async (targetFacing: 'environment' | 'user'): Promise<MediaStream> => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      throw new Error('CAMERA_UNSUPPORTED');
-    }
-
-    // Tier 1: Ideal target facing with 1280x720
-    try {
-      return await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: targetFacing },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
-    } catch (e1: any) {
-      console.warn(`[ImageSearch] Tier 1 (${targetFacing}) failed:`, e1?.name);
-    }
-
-    // Tier 2: Simple target facing mode
-    try {
-      return await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: targetFacing },
-        audio: false,
-      });
-    } catch (e2: any) {
-      console.warn(`[ImageSearch] Tier 2 (${targetFacing}) failed:`, e2?.name);
-    }
-
-    // Tier 3: Opposite facing mode (e.g. laptop webcam is 'user' when 'environment' was requested)
-    const opposite = targetFacing === 'environment' ? 'user' : 'environment';
-    try {
-      return await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: opposite },
-        audio: false,
-      });
-    } catch (e3: any) {
-      console.warn(`[ImageSearch] Tier 3 (${opposite}) failed:`, e3?.name);
-    }
-
-    // Tier 4: Generic video (laptop webcams & USB cameras)
-    return await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: false,
-    });
-  };
 
   const handleStartLiveCamera = async () => {
     setError(null);
     setIsCameraActive(true);
     setIsCameraStarting(true);
 
-    if (typeof window !== 'undefined' && !window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    if (
+      typeof window !== 'undefined' &&
+      !window.isSecureContext &&
+      location.hostname !== 'localhost' &&
+      location.hostname !== '127.0.0.1'
+    ) {
       setIsCameraStarting(false);
       setIsCameraActive(false);
       setError('Camera access requires HTTPS or localhost. Please browse an image file instead.');
@@ -162,39 +126,31 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
     }
 
     try {
-      const stream = await acquireCameraStream(cameraFacing);
+      const stream = await BarcodeScannerEngine.acquireCamera(cameraFacing);
       if (!isComponentMounted.current) {
         stream.getTracks().forEach((t) => t.stop());
         return;
       }
 
       streamRef.current = stream;
-
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.setAttribute('playsinline', 'true');
         videoRef.current.setAttribute('autoplay', 'true');
-        videoRef.current.setAttribute('muted', 'true');
-        try {
-          await videoRef.current.play();
-        } catch (playErr) {
-          console.warn('[ImageSearch] Video play error:', playErr);
-        }
+        videoRef.current.muted = true;
+        await videoRef.current.play();
       }
 
       setIsCameraStarting(false);
     } catch (err: any) {
       setIsCameraStarting(false);
       setIsCameraActive(false);
-
-      if (err.message === 'CAMERA_UNSUPPORTED') {
-        setError('Camera access is not supported by your current browser. You can browse an image file instead.');
+      if (err.message === 'CAMERA_NOT_SUPPORTED') {
+        setError('Camera access is not supported by your browser. Please upload an image file.');
       } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setError('Camera permission was denied in your browser. Please allow camera permissions or upload an image file.');
-      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        setError('No camera was detected on this device. You can upload an image file below.');
+        setError('Camera permission was denied. Please allow camera permissions or upload an image file.');
       } else {
-        setError(`Could not open camera (${err.message || 'Unknown device error'}). Please upload a photograph.`);
+        setError(`Could not start camera: ${err.message || 'Device error'}. Please upload an image file.`);
       }
     }
   };
@@ -207,21 +163,24 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
     setIsCameraStarting(true);
 
     try {
-      const stream = await acquireCameraStream(nextFacing);
+      const stream = await BarcodeScannerEngine.acquireCamera(nextFacing);
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute('playsinline', 'true');
+        videoRef.current.setAttribute('autoplay', 'true');
+        videoRef.current.muted = true;
         await videoRef.current.play();
       }
       setIsCameraStarting(false);
-    } catch (err: any) {
+    } catch {
       setIsCameraStarting(false);
       setIsCameraActive(false);
-      setError('Could not switch camera. Please upload an image file instead.');
+      setError('Could not switch camera. Please upload an image file.');
     }
   };
 
-  // Helper to downscale large image base64 data to ~50KB to respect Vercel limits and speed up recognition
+  // Helper to downscale large image base64 data to ~50KB to respect server limits
   const downscaleImageBase64 = (dataUrl: string, maxDim = 800): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -263,7 +222,6 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
       const rawW = video.videoWidth || 1280;
       const rawH = video.videoHeight || 720;
 
-      // Downscale to max 800px immediately on capture (approx 50KB payload)
       const maxDim = 800;
       let targetW = rawW;
       let targetH = rawH;
@@ -284,7 +242,6 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Could not create canvas context');
 
-      // If using front camera on laptop/phone, flip horizontally for natural mirror feel
       if (cameraFacing === 'user') {
         ctx.translate(targetW, 0);
         ctx.scale(-1, 1);
@@ -321,7 +278,6 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
     setError(null);
     setMimeType('image/jpeg');
 
-    // Extract smart guess from filename if available (e.g. sony_xm5.jpg -> Sony WH-1000XM5)
     const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ').trim();
     let fileGuess = '';
     const fnLower = fileNameWithoutExt.toLowerCase();
@@ -331,7 +287,7 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
       fileGuess = 'Samsung Galaxy S24 Ultra';
     } else if (fnLower.includes('macbook') || fnLower.includes('m3') || fnLower.includes('laptop')) {
       fileGuess = 'Apple MacBook Pro 14"';
-    } else if (fnLower.includes('sony') || fnLower.includes('1000xm5') || fnLower.includes('headphone') || fnLower.includes('xm5')) {
+    } else if (fnLower.includes('sony') || fnLower.includes('1000xm5') || fnLower.includes('xm5')) {
       fileGuess = 'Sony WH-1000XM5';
     } else if (fnLower.includes('ps5') || fnLower.includes('playstation')) {
       fileGuess = 'Sony PlayStation 5 Slim';
@@ -347,7 +303,6 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
     reader.onload = async () => {
       const rawBase64 = reader.result as string;
       stopCamera();
-      // Downscale to 800px to ensure a lightweight 50KB payload that never fails Vercel limits
       const optimizedBase64 = await downscaleImageBase64(rawBase64, 800);
       setSelectedImage(optimizedBase64);
       setRecognitionResult(null);
@@ -360,6 +315,7 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
   const processImage = async (base64Full: string, type: string, initialGuess = '') => {
     setIsProcessing(true);
     setError(null);
+    setSelectedCandidateId(null);
 
     const base64Clean = base64Full.replace(/^data:image\/[a-z]+;base64,/, '');
     const customKey = sessionStorage.getItem('nebius_custom_api_key') || '';
@@ -388,7 +344,6 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
           setConfirmedName(nameToSet);
           setSelectedCategory(inferProductCategory(nameToSet, result.brand, result.category));
         } else {
-          // If no name detected, suggest first popular product of the selected category
           const defaultPres = CATEGORY_PRESETS[selectedCategory]?.[0] || 'Apple iPhone 16 Pro';
           setConfirmedName(defaultPres);
           setSelectedCategory(inferProductCategory(defaultPres));
@@ -402,6 +357,7 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
           category: cat,
           confidence: initialGuess ? 85 : 75,
           attributes: ['Visual inspection captured', 'Ready for multi-retailer search'],
+          provider: 'verified-catalog',
         });
         setConfirmedName(defaultPres);
         setSelectedCategory(cat);
@@ -415,12 +371,20 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
         category: cat,
         confidence: 70,
         attributes: ['Visual inspection captured'],
+        provider: 'verified-catalog',
       });
       setConfirmedName(defaultPres);
       setSelectedCategory(cat);
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  // User selects one of the detected candidate objects in a multi-object photo
+  const handleSelectCandidate = (candidate: DetectedCandidateObject) => {
+    setSelectedCandidateId(candidate.id);
+    setConfirmedName(candidate.name);
+    setSelectedCategory(inferProductCategory(candidate.name, candidate.brand, candidate.category));
   };
 
   const handleConfirmAndSearch = () => {
@@ -435,12 +399,21 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
     setRecognitionResult(null);
     setConfirmedName('');
     setSelectedCategory('smartphones');
+    setSelectedCandidateId(null);
     setError(null);
   };
 
+  // Google Lens external search action
+  const handleOpenGoogleLens = () => {
+    // Open Google Lens web workflow in new tab
+    window.open('https://lens.google.com/uploadbyurl', '_blank', 'noopener,noreferrer');
+  };
+
+  if (!isOpen) return null;
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 580 }}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 620 }}>
         {/* Header */}
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
@@ -449,8 +422,8 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
                 width: 36,
                 height: 36,
                 borderRadius: 'var(--radius-md)',
-                background: 'rgba(99, 102, 241, 0.15)',
-                color: 'var(--indigo-accent)',
+                background: 'rgba(20, 184, 166, 0.15)',
+                color: 'var(--teal-bright)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -459,459 +432,475 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
               <ImageIcon size={20} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.25rem' }}>Visual Product Discovery</h3>
+              <h3 style={{ fontSize: '1.25rem' }}>Google-Powered Visual Search</h3>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                Take a photo with your webcam/camera or upload product packaging
+                Recognize products, accessories, packaging text, and multi-object photographs
               </p>
             </div>
           </div>
-          <button className="close-btn" onClick={onClose} aria-label="Close image search">
+          <button className="close-btn" onClick={onClose} aria-label="Close visual search">
             <X size={20} />
           </button>
         </div>
 
-        {/* View 1: Live Webcam Viewfinder Mode (Active on Laptop & Mobile) */}
-        {isCameraActive && !selectedImage ? (
+        {/* State A: Photo Processed & Results Available */}
+        {selectedImage && !isProcessing && recognitionResult && (
+          <div style={{ padding: '0.25rem 0' }}>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+              {/* Thumbnail with Retake button */}
+              <div style={{ width: 110, position: 'relative', flexShrink: 0 }}>
+                <img
+                  src={selectedImage}
+                  alt="Captured Product"
+                  style={{
+                    width: '100%',
+                    height: 110,
+                    objectFit: 'cover',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  style={{
+                    position: 'absolute',
+                    bottom: 4,
+                    right: 4,
+                    padding: '0.2rem 0.45rem',
+                    fontSize: '0.68rem',
+                    background: 'rgba(0, 0, 0, 0.75)',
+                    color: '#fff',
+                    borderRadius: 'var(--radius-xs)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.2rem',
+                  }}
+                  title="Retake or choose a different photo"
+                >
+                  <RefreshCw size={10} /> Retake
+                </button>
+              </div>
+
+              {/* Recognition Summary & Source Badge */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      padding: '0.15rem 0.55rem',
+                      borderRadius: 'var(--radius-pill)',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      background: 'rgba(20, 184, 166, 0.15)',
+                      color: 'var(--teal-bright)',
+                    }}
+                  >
+                    {recognitionResult.provider === 'google-vision'
+                      ? 'Google Cloud Vision'
+                      : recognitionResult.provider === 'nebius-vision'
+                      ? 'Multimodal AI Vision'
+                      : 'Visual Inspection'}
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Match Confidence: <strong>{recognitionResult.confidence}%</strong>
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                  {recognitionResult.message || 'Product identified. Confirm details below or search across retailers:'}
+                </div>
+              </div>
+            </div>
+
+            {/* Candidate Objects Selector (when multiple objects exist in photo) */}
+            {recognitionResult.candidates && recognitionResult.candidates.length > 1 && (
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    marginBottom: '0.45rem',
+                    color: 'var(--text-main)',
+                  }}
+                >
+                  <Layers size={14} style={{ color: 'var(--teal-bright)' }} />
+                  Multiple Objects Detected — Select which item to search:
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
+                  {recognitionResult.candidates.map((cand) => {
+                    const isSelected = selectedCandidateId === cand.id || confirmedName === cand.name;
+                    return (
+                      <button
+                        key={cand.id}
+                        type="button"
+                        onClick={() => handleSelectCandidate(cand)}
+                        style={{
+                          textAlign: 'left',
+                          padding: '0.65rem 0.75rem',
+                          borderRadius: 'var(--radius-md)',
+                          border: isSelected ? '2px solid var(--teal-bright)' : '1px solid var(--border-subtle)',
+                          background: isSelected ? 'rgba(20, 184, 166, 0.12)' : 'var(--bg-card)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {cand.name}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                          Category: {cand.category} • {cand.confidence}%
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Confirmed Name Input */}
+            <div style={{ marginBottom: '1.1rem' }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  marginBottom: '0.45rem',
+                  color: 'var(--text-main)',
+                }}
+              >
+                Product Name / Model:
+              </label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Confirm or edit product name..."
+                value={confirmedName}
+                onChange={(e) => setConfirmedName(e.target.value)}
+                style={{ width: '100%', fontSize: '0.88rem' }}
+              />
+            </div>
+
+            {/* Category Selector */}
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  marginBottom: '0.45rem',
+                  color: 'var(--text-main)',
+                }}
+              >
+                Category (determines TCO accessory recommendations):
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.45rem' }}>
+                {CATEGORY_OPTIONS.slice(0, 6).map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(opt.id)}
+                    style={{
+                      padding: '0.5rem',
+                      borderRadius: 'var(--radius-md)',
+                      border: selectedCategory === opt.id ? '2px solid var(--teal-bright)' : '1px solid var(--border-subtle)',
+                      background: selectedCategory === opt.id ? 'rgba(20, 184, 166, 0.12)' : 'var(--bg-card)',
+                      color: selectedCategory === opt.id ? 'var(--teal-bright)' : 'var(--text-secondary)',
+                      fontSize: '0.78rem',
+                      fontWeight: selectedCategory === opt.id ? 700 : 500,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <span>{opt.icon}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {opt.label.split(' ')[0]}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions: Confirm Search & Open in Google Lens */}
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleConfirmAndSearch}
+                disabled={!confirmedName.trim()}
+                style={{
+                  flex: 1,
+                  minWidth: 200,
+                  padding: '0.7rem 1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <Search size={16} />
+                <span>Search in VeraCost & Compare</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleOpenGoogleLens}
+                style={{
+                  padding: '0.7rem 1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  fontSize: '0.82rem',
+                }}
+                title="Search this image directly with Google Lens"
+              >
+                <ExternalLink size={14} />
+                <span>Search with Google Lens</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* State B: Processing State */}
+        {isProcessing && (
+          <div style={{ padding: '3rem 1rem', textAlign: 'center' }}>
+            <RefreshCw
+              size={36}
+              className="spin"
+              style={{ color: 'var(--teal-bright)', margin: '0 auto 1rem', display: 'block' }}
+            />
+            <h4 style={{ fontSize: '1.1rem', marginBottom: '0.4rem', color: 'var(--text-main)' }}>
+              Analyzing Photograph...
+            </h4>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              Extracting labels, packaging text, brand marks, and candidate objects...
+            </p>
+          </div>
+        )}
+
+        {/* State C: Live Camera Active */}
+        {!selectedImage && !isProcessing && isCameraActive && (
           <div>
             <div
               style={{
                 position: 'relative',
                 width: '100%',
-                height: 320,
+                height: 290,
+                background: '#0a0d14',
                 borderRadius: 'var(--radius-lg)',
                 overflow: 'hidden',
-                background: '#04070d',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '1px solid var(--border-medium)',
+                border: '1px solid var(--border-subtle)',
                 marginBottom: '1rem',
               }}
             >
               <video
                 ref={videoRef}
-                autoPlay
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 playsInline
                 muted
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  display: !isCameraStarting ? 'block' : 'none',
-                }}
+                autoPlay
               />
 
               {isCameraStarting && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.75rem',
-                    color: 'var(--indigo-accent)',
-                    background: '#04070d',
-                  }}
-                >
-                  <RefreshCw size={32} className="spin" />
-                  <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
-                    Opening camera preview...
-                  </div>
+                <div style={{ position: 'absolute', top: '40%', left: 0, right: 0, textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <RefreshCw size={28} className="spin" style={{ color: 'var(--teal-bright)', margin: '0 auto 0.5rem' }} />
+                  <p style={{ fontSize: '0.85rem' }}>Opening camera stream...</p>
                 </div>
               )}
 
-              {/* Controls bar on top of camera */}
+              {/* Viewfinder guideline */}
               <div
                 style={{
                   position: 'absolute',
-                  top: '0.75rem',
-                  left: '0.75rem',
-                  right: '0.75rem',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  zIndex: 10,
+                  top: '15%',
+                  left: '15%',
+                  right: '15%',
+                  bottom: '15%',
+                  border: '2px dashed rgba(20, 184, 166, 0.75)',
+                  borderRadius: 'var(--radius-md)',
+                  pointerEvents: 'none',
                 }}
-              >
-                <button
-                  type="button"
-                  onClick={stopCamera}
-                  style={{
-                    background: 'rgba(0, 0, 0, 0.65)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    color: '#ffffff',
-                    borderRadius: 'var(--radius-full)',
-                    padding: '0.35rem 0.75rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    backdropFilter: 'blur(4px)',
-                  }}
-                >
-                  <ArrowLeft size={14} />
-                  <span>Back</span>
-                </button>
+              />
 
-                <button
-                  type="button"
-                  onClick={toggleCameraFacing}
-                  title="Switch front/back camera"
-                  style={{
-                    background: 'rgba(0, 0, 0, 0.65)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    color: '#ffffff',
-                    borderRadius: 'var(--radius-full)',
-                    padding: '0.35rem 0.75rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    backdropFilter: 'blur(4px)',
-                  }}
-                >
-                  <SwitchCamera size={14} />
-                  <span>{cameraFacing === 'environment' ? 'Rear' : 'Front'} Cam</span>
-                </button>
-              </div>
-
-              {/* Reticle / target box */}
-              {!isCameraStarting && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: '18%',
-                    border: '2px dashed rgba(255, 255, 255, 0.5)',
-                    borderRadius: 12,
-                    pointerEvents: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <div
-                    style={{
-                      background: 'rgba(0, 0, 0, 0.6)',
-                      padding: '0.25rem 0.65rem',
-                      borderRadius: 'var(--radius-full)',
-                      fontSize: '0.72rem',
-                      color: '#ffffff',
-                    }}
-                  >
-                    Center product in frame
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Shutter / Capture Actions */}
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              {/* Camera Switcher */}
               <button
                 type="button"
-                className="btn-primary"
-                onClick={handleCaptureSnapshot}
-                disabled={isCameraStarting}
+                onClick={toggleCameraFacing}
                 style={{
-                  flex: 1,
-                  justifyContent: 'center',
-                  padding: '0.75rem',
-                  fontSize: '0.95rem',
-                  fontWeight: 600,
-                  background: 'linear-gradient(135deg, var(--indigo-accent), var(--teal-bright))',
+                  position: 'absolute',
+                  top: '0.75rem',
+                  right: '0.75rem',
+                  background: 'rgba(0, 0, 0, 0.65)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  color: '#fff',
+                  borderRadius: 'var(--radius-pill)',
+                  padding: '0.35rem 0.65rem',
+                  fontSize: '0.72rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  cursor: 'pointer',
+                  backdropFilter: 'blur(4px)',
                 }}
               >
-                <Camera size={18} />
-                Capture Photo
+                <SwitchCamera size={13} />
+                <span>{cameraFacing === 'environment' ? 'Rear' : 'Front'}</span>
               </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={stopCamera}
-                style={{ padding: '0.75rem 1rem' }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : !selectedImage ? (
-          /* View 2: Selection Mode (Upload / Snap Photo) */
-          <div>
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              style={{
-                border: '2px dashed var(--border-medium)',
-                borderRadius: 'var(--radius-xl)',
-                padding: '2.5rem 1.5rem',
-                textAlign: 'center',
-                cursor: 'pointer',
-                background: 'var(--bg-card)',
-                transition: 'border-color var(--transition-fast)',
-                marginBottom: '1rem',
-              }}
-            >
-              <Upload size={36} style={{ color: 'var(--indigo-accent)', margin: '0 auto 0.75rem' }} />
-              <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem' }}>
-                Click to browse product photograph
-              </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                Supports JPEG, PNG, or WebP up to 15MB
-              </div>
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button
                 type="button"
-                className="btn-secondary"
-                onClick={handleStartLiveCamera}
-                style={{ flex: 1, justifyContent: 'center' }}
+                className="btn-primary"
+                onClick={handleCaptureSnapshot}
+                style={{ flex: 1, padding: '0.7rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
               >
-                <Camera size={16} />
-                Snap Photo with Camera
+                <Camera size={16} /> Snap Photo & Recognize
               </button>
-
-              {/* Mobile native camera fallback button */}
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={() => cameraInputRef.current?.click()}
-                title="Use phone native camera app"
-                style={{ padding: '0.55rem 0.85rem' }}
+                onClick={stopCamera}
+                style={{ padding: '0.7rem 1rem' }}
               >
-                Native Cam
+                Cancel
               </button>
             </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              style={{ display: 'none' }}
-              onChange={handleFileChange}
-            />
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              style={{ display: 'none' }}
-              onChange={handleFileChange}
-            />
-          </div>
-        ) : (
-          /* View 3: Image Preview & Confirmation Mode */
-          <div>
-            {/* Image Preview & Processing State */}
-            <div
-              style={{
-                display: 'flex',
-                gap: '1rem',
-                alignItems: 'center',
-                background: 'var(--bg-elevated)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '0.75rem',
-                marginBottom: '1.25rem',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <img
-                src={selectedImage}
-                alt="Product Preview"
-                style={{
-                  width: 80,
-                  height: 80,
-                  objectFit: 'cover',
-                  borderRadius: 'var(--radius-md)',
-                }}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)' }}>
-                  Captured Image Loaded
-                </div>
-                {isProcessing ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--teal-bright)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
-                    <RefreshCw size={14} className="spin" />
-                    Multimodal AI is identifying product features...
-                  </div>
-                ) : (
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                    Analysis complete. Confirm details below.
-                  </div>
-                )}
-              </div>
-              <button
-                type="button"
-                className="icon-btn"
-                onClick={handleReset}
-                title="Choose different image"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                <RefreshCw size={16} />
-              </button>
-            </div>
-
-            {/* Recognition Results & Confirmation */}
-            {recognitionResult && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {recognitionResult.confidence && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '0.5rem 0.85rem',
-                      background: 'rgba(20, 184, 166, 0.1)',
-                      border: '1px solid rgba(20, 184, 166, 0.25)',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '0.8rem',
-                    }}
-                  >
-                    <span style={{ color: 'var(--teal-bright)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Sparkles size={14} />
-                      Match Confidence: {recognitionResult.confidence}%
-                    </span>
-                    <span style={{ color: 'var(--text-muted)' }}>
-                      Category: {recognitionResult.category || 'Smartphones & Tech'}
-                    </span>
-                  </div>
-                )}
-
-                {/* Edit / Confirm Name Input */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--text-main)' }}>
-                    Confirm Detected Product Name & Model
-                  </label>
-                  <input
-                    type="text"
-                    className="input-box"
-                    value={confirmedName}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setConfirmedName(val);
-                      if (val.trim()) {
-                        setSelectedCategory(inferProductCategory(val));
-                      }
-                    }}
-                    placeholder="e.g. Sony WH-1000XM5, iPhone 16 Pro, or PS5 Slim"
-                  />
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
-                    Type the product model or pick from popular presets below:
-                  </div>
-
-                  {/* One-Tap Suggestion Chips dynamically tuned to selected category */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.6rem' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', alignSelf: 'center', marginRight: '0.15rem' }}>
-                      Suggested:
-                    </span>
-                    {(CATEGORY_PRESETS[selectedCategory] || POPULAR_PRESETS).map((preset) => {
-                      const isSelected = confirmedName.toLowerCase().includes(preset.toLowerCase());
-                      return (
-                        <button
-                          key={preset}
-                          type="button"
-                          onClick={() => {
-                            setConfirmedName(preset);
-                            setSelectedCategory(inferProductCategory(preset));
-                          }}
-                          style={{
-                            padding: '0.25rem 0.65rem',
-                            borderRadius: 'var(--radius-full)',
-                            fontSize: '0.74rem',
-                            fontWeight: 500,
-                            background: isSelected ? 'var(--indigo-accent)' : 'var(--bg-elevated)',
-                            color: isSelected ? '#ffffff' : 'var(--text-main)',
-                            border: `1px solid ${isSelected ? 'var(--indigo-accent)' : 'var(--border-medium)'}`,
-                            cursor: 'pointer',
-                            transition: 'all var(--transition-fast)',
-                          }}
-                        >
-                          {preset}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Product Category Selector */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--text-main)' }}>
-                    Product Category (determines TCO accessory recommendations)
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.4rem' }}>
-                    {CATEGORY_OPTIONS.map((cat) => {
-                      const isCatSelected = selectedCategory === cat.id;
-                      return (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedCategory(cat.id);
-                            const presetsForCat = CATEGORY_PRESETS[cat.id];
-                            if (presetsForCat && presetsForCat.length > 0) {
-                              const currentMatchesCat = inferProductCategory(confirmedName) === cat.id;
-                              if (!currentMatchesCat) {
-                                setConfirmedName(presetsForCat[0]);
-                              }
-                            }
-                          }}
-                          style={{
-                            padding: '0.45rem 0.65rem',
-                            borderRadius: 'var(--radius-md)',
-                            fontSize: '0.78rem',
-                            fontWeight: isCatSelected ? 600 : 400,
-                            background: isCatSelected ? 'rgba(20, 184, 166, 0.16)' : 'var(--bg-elevated)',
-                            color: isCatSelected ? 'var(--teal-bright)' : 'var(--text-main)',
-                            border: `1.5px solid ${isCatSelected ? 'var(--teal-bright)' : 'var(--border-subtle)'}`,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.45rem',
-                            textAlign: 'left',
-                            transition: 'all var(--transition-fast)',
-                          }}
-                        >
-                          <span style={{ fontSize: '1rem' }}>{cat.icon}</span>
-                          <span>{cat.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
-                    Selected: <strong style={{ color: 'var(--teal-bright)' }}>{CATEGORY_OPTIONS.find((c) => c.id === selectedCategory)?.label || selectedCategory}</strong>. Matching accessories will be populated on import.
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-                  <button type="button" className="btn-secondary" onClick={handleReset}>
-                    Upload Another
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    disabled={!confirmedName.trim()}
-                    onClick={handleConfirmAndSearch}
-                    style={{
-                      background: 'linear-gradient(135deg, var(--teal-bright), var(--emerald-success))',
-                      fontWeight: 600,
-                    }}
-                  >
-                    <Check size={16} />
-                    Confirm & Search Retailers
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
-        {error && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--amber-warning)', fontSize: '0.82rem', marginTop: '1rem' }}>
-            <AlertCircle size={16} />
-            {error}
+        {/* State D: Default Upload / Camera Picker Interface */}
+        {!selectedImage && !isProcessing && !isCameraActive && (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+              {/* Option 1: Live Camera */}
+              <div
+                onClick={handleStartLiveCamera}
+                style={{
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '2rem 1rem',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  background: 'var(--bg-card)',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: '50%',
+                    background: 'rgba(20, 184, 166, 0.15)',
+                    color: 'var(--teal-bright)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 0.75rem',
+                  }}
+                >
+                  <Camera size={24} />
+                </div>
+                <h4 style={{ fontSize: '0.95rem', color: 'var(--text-main)', marginBottom: '0.25rem' }}>
+                  Capture with Camera
+                </h4>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Snap photograph using laptop webcam or phone camera
+                </p>
+              </div>
+
+              {/* Option 2: Upload File */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  border: '1px dashed var(--border-subtle)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '2rem 1rem',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  background: 'var(--bg-card)',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: '50%',
+                    background: 'rgba(59, 130, 246, 0.15)',
+                    color: 'var(--blue-highlight, #3b82f6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 0.75rem',
+                  }}
+                >
+                  <Upload size={24} />
+                </div>
+                <h4 style={{ fontSize: '0.95rem', color: 'var(--text-main)', marginBottom: '0.25rem' }}>
+                  Upload Image File
+                </h4>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Browse JPEG, PNG, or WebP photo or screenshot
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div
+                style={{
+                  padding: '0.75rem 1rem',
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                  borderRadius: 'var(--radius-md)',
+                  color: 'var(--amber-warning)',
+                  fontSize: '0.8rem',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <AlertCircle size={16} />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Google Lens Direct Search Action */}
+            <div
+              style={{
+                borderTop: '1px solid var(--border-subtle)',
+                paddingTop: '1rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                Want to search Google Lens directly?
+              </span>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleOpenGoogleLens}
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.76rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <ExternalLink size={12} /> Open Google Lens
+              </button>
+            </div>
           </div>
         )}
       </div>

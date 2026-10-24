@@ -1,10 +1,10 @@
 import React from 'react';
-import { Layers, Sparkles, SlidersHorizontal, Bookmark, Settings2, PlusCircle, Sun, Moon, ShoppingBag } from 'lucide-react';
+import { Layers, Sparkles, SlidersHorizontal, Bookmark, Settings2, PlusCircle, Sun, Moon, ShoppingBag, LifeBuoy, Scissors, MessageSquare } from 'lucide-react';
 import { BRAND_CONFIG, CurrencyConfig } from '../config/branding';
 
 interface HeaderProps {
-  currentTab: 'landing' | 'shopping' | 'workspace' | 'saved';
-  setCurrentTab: (tab: 'landing' | 'shopping' | 'workspace' | 'saved') => void;
+  currentTab: 'landing' | 'shopping' | 'workspace' | 'saved' | 'support';
+  setCurrentTab: (tab: 'landing' | 'shopping' | 'workspace' | 'saved' | 'support') => void;
   currency: string;
   setCurrency: (c: string) => void;
   isAiLive: boolean;
@@ -13,6 +13,8 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onOpenSavedModal: () => void;
   onOpenNewComparison: () => void;
+  onOpenScreenshotImport?: () => void;
+  onToggleAssistant?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,6 +28,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onOpenSavedModal,
   onOpenNewComparison,
+  onOpenScreenshotImport,
+  onToggleAssistant,
 }) => {
   return (
     <header className="app-header">
@@ -75,10 +79,43 @@ export const Header: React.FC<HeaderProps> = ({
             <Bookmark size={15} />
             Saved & Benchmarks
           </button>
+          <button
+            className={`nav-tab-btn ${currentTab === 'support' ? 'active' : ''}`}
+            onClick={() => setCurrentTab('support')}
+          >
+            <LifeBuoy size={15} />
+            Contact & Support
+          </button>
         </nav>
 
         {/* Header Actions */}
         <div className="header-actions">
+          {/* Screenshot Import Action */}
+          {onOpenScreenshotImport && (
+            <button
+              className="btn-secondary"
+              onClick={onOpenScreenshotImport}
+              style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              title="Import product screenshot via clipboard paste (Ctrl+V) or upload"
+            >
+              <Scissors size={14} />
+              <span>Screenshot Import</span>
+            </button>
+          )}
+
+          {/* Vera Assistant Chat Trigger */}
+          {onToggleAssistant && (
+            <button
+              className="btn-secondary"
+              onClick={onToggleAssistant}
+              style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              title="Chat with Vera Assistant"
+            >
+              <MessageSquare size={14} style={{ color: 'var(--teal-bright)' }} />
+              <span>Vera Assistant</span>
+            </button>
+          )}
+
           {/* New Custom Comparison Button */}
           <button
             className="btn-primary"

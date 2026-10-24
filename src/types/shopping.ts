@@ -137,9 +137,26 @@ export interface ShoppingFilterState {
   searchQuery: string;
 }
 
+export interface DetectedCandidateObject {
+  id: string;
+  name: string;
+  category: string;
+  confidence: number;
+  brand?: string;
+  model?: string;
+  boundingBox?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  source: 'google-vision' | 'nebius-vision' | 'ocr' | 'benchmark';
+}
+
 export interface BarcodeLookupResult {
   found: boolean;
   barcode: string;
+  format?: string; // e.g. EAN-13, UPC-A, Code 128
   productName?: string;
   brand?: string;
   model?: string;
@@ -157,6 +174,12 @@ export interface ImageRecognitionResult {
   category?: string;
   confidence: number;
   attributes?: string[];
+  candidates?: DetectedCandidateObject[];
+  extractedText?: string;
+  extractedPrice?: number;
+  detectedRetailer?: string;
   message?: string;
   isAwaitingConfig?: boolean;
+  provider?: 'google-vision' | 'nebius-vision' | 'local-ocr' | 'verified-catalog';
 }
+

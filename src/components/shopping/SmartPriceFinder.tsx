@@ -25,7 +25,8 @@ import {
   ChevronDown,
   Layers,
   ArrowUpDown,
-  QrCode
+  QrCode,
+  Scissors
 } from 'lucide-react';
 import { 
   SearchedProduct, 
@@ -50,6 +51,7 @@ import { cleanRetailerSearchQuery } from '../../../server/retailers/baseAdapter'
 interface SmartPriceFinderProps {
   onImportToCalculator: (option: Partial<ComparisonOption>) => void;
   currentCurrency: string;
+  onOpenScreenshotImport?: () => void;
 }
 
 const POPULAR_SEARCH_PRESETS = [
@@ -63,6 +65,7 @@ const POPULAR_SEARCH_PRESETS = [
 export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
   onImportToCalculator,
   currentCurrency,
+  onOpenScreenshotImport,
 }) => {
   // Search & Products Session State
   const [searchInput, setSearchInput] = useState('Apple iPhone 16 Pro 128GB');
@@ -487,6 +490,19 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
                 <Link2 size={16} style={{ color: 'var(--cyan-bright)' }} />
                 Paste URL
               </button>
+
+              {onOpenScreenshotImport && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={onOpenScreenshotImport}
+                  title="Import product screenshot via clipboard paste (Ctrl+V) or drag-and-drop"
+                  style={{ height: '46px', padding: '0 1rem', fontSize: '0.85rem' }}
+                >
+                  <Scissors size={16} style={{ color: 'var(--amber-warning)' }} />
+                  Screenshot Import
+                </button>
+              )}
             </div>
           </form>
 

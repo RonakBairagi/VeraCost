@@ -11,11 +11,15 @@ import { NebiusSettingsModal } from './components/NebiusSettingsModal';
 import { NewComparisonModal } from './components/NewComparisonModal';
 import { DynamicBackground } from './components/DynamicBackground';
 import { SmartPriceFinder } from './components/shopping/SmartPriceFinder';
+import { ScreenshotImportModal } from './components/shopping/ScreenshotImportModal';
+import { SupportPage } from './components/SupportPage';
+import { VeraAssistantModal } from './components/chat/VeraAssistantModal';
+import { Bot, MessageSquare } from 'lucide-react';
 import { calculateComparison } from './engine/calculator';
 import { getSuggestionsForCategory, createCostItemFromSuggestion, inferProductCategory } from './engine/discovery';
 
 export const App: React.FC = () => {
-  const [currentTab, setCurrentTab] = useState<'landing' | 'shopping' | 'workspace' | 'saved'>('shopping');
+  const [currentTab, setCurrentTab] = useState<'landing' | 'shopping' | 'workspace' | 'saved' | 'support'>('shopping');
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try {
       const storedTheme = localStorage.getItem('veracost_theme');
@@ -62,6 +66,8 @@ export const App: React.FC = () => {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isNewComparisonModalOpen, setIsNewComparisonModalOpen] = useState(false);
+  const [isScreenshotModalOpen, setIsScreenshotModalOpen] = useState(false);
+  const [isAssistantChatOpen, setIsAssistantChatOpen] = useState(false);
 
   // Check server configuration on mount
   const checkServerConfig = async () => {
@@ -181,6 +187,8 @@ export const App: React.FC = () => {
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         onOpenSavedModal={() => setIsSavedModalOpen(true)}
         onOpenNewComparison={() => setIsNewComparisonModalOpen(true)}
+        onOpenScreenshotImport={() => setIsScreenshotModalOpen(true)}
+        onToggleAssistant={() => setIsAssistantChatOpen((prev) => !prev)}
       />
 
       <main style={{ flex: 1, position: 'relative', zIndex: 1 }}>
@@ -195,6 +203,12 @@ export const App: React.FC = () => {
           <SmartPriceFinder
             onImportToCalculator={handleImportFromShopping}
             currentCurrency={currency}
+            onOpenScreenshotImport={() => setIsScreenshotModalOpen(true)}
+          />
+        ) : currentTab === 'support' ? (
+          <SupportPage
+            onNavigateToShopping={() => setCurrentTab('shopping')}
+            onNavigateToWorkspace={() => setCurrentTab('workspace')}
           />
         ) : (
           <Workspace
@@ -209,6 +223,68 @@ export const App: React.FC = () => {
           />
         )}
       </main>
+
+      {/* Floating Vera Assistant Launcher */}
+      {!isAssistantChatOpen && (
+        <button
+          type="button"
+          onClick={() => setIsAssistantChatOpen(true)}
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            padding: '0.65rem 1.15rem',
+            borderRadius: 'var(--radius-pill)',
+            background: 'linear-gradient(135deg, #0d9488, #2563eb)',
+            color: '#ffffff',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
+            border: '1px solid rgba(255, 255, 255, 0.25)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontWeight: 700,
+            fontSize: '0.84rem',
+            zIndex: 999,
+            transition: 'transform 0.2s',
+          }}
+          title="Chat with Vera Assistant"
+        >
+          <Bot size={18} />
+          <span>Chat with Vera</span>
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: '#4ade80',
+              boxShadow: '0 0 6px #4ade80',
+              display: 'inline-block',
+            }}
+          />
+        </button>
+      )}
+
+      {/* Vera Assistant Chatbot Modal */}
+      <VeraAssistantModal
+        isOpen={isAssistantChatOpen}
+        onClose={() => setIsAssistantChatOpen(false)}
+        onNavigateTab={(tab) => setCurrentTab(tab)}
+        onOpenScreenshotImport={() => setIsScreenshotModalOpen(true)}
+      />
+
+      {/* Screenshot & Image Import Modal */}
+      <ScreenshotImportModal
+        isOpen={isScreenshotModalOpen}
+        onClose={() => setIsScreenshotModalOpen(false)}
+        onProductImported={(name, category, price) => {
+          handleImportFromShopping({
+            name,
+            category,
+            initialPurchasePrice: price || 10000,
+          });
+        }}
+      />
 
       {/* Modals */}
       <NewComparisonModal
@@ -274,8 +350,24 @@ export const App: React.FC = () => {
           <div>
             <strong style={{ color: 'var(--text-main)' }}>{BRAND_CONFIG.name}</strong> — {BRAND_CONFIG.descriptor}
           </div>
-          <div>
-            {BRAND_CONFIG.hackathonNotice} • Apache 2.0 License • Nebius Token Factory & NVIDIA Nemotron
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => setCurrentTab('support')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--teal-bright)',
+                cursor: 'pointer',
+                fontSize: '0.82rem',
+                textDecoration: 'underline',
+                padding: 0,
+              }}
+            >
+              Contact & Support (Ronak Bairagi)
+            </button>
+            <span>•</span>
+            <span>{BRAND_CONFIG.hackathonNotice} • Apache 2.0 License • Nebius Token Factory & NVIDIA Nemotron</span>
           </div>
         </div>
       </footer>

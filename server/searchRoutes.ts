@@ -4,6 +4,7 @@ import { RetailerSearchQuery } from './retailers/types';
 import { BarcodeLookupResult, ImageRecognitionResult } from '../src/types/shopping';
 import { VERIFIED_INDIAN_CATALOG } from './retailers/verifiedCatalog';
 import { inferProductCategory } from '../src/engine/discovery';
+import { analyzeImageWithGoogleVision } from './services/googleVision';
 
 export const searchRouter = Router();
 
@@ -163,13 +164,36 @@ searchRouter.post('/recognize-image', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Unsupported image format. Please upload JPEG, PNG, or WebP.' });
     }
 
+    // 1. Check Google Cloud Vision API first (Labels, Object Localization, Web Detection, OCR)
+    const googleVisionKey = (req.headers['x-google-vision-key'] as string) || req.body?.googleVisionKey;
+    const googleResult = await analyzeImageWithGoogleVision(imageBase64, googleVisionKey);
+    if (googleResult && googleResult.success && googleResult.detectedName) {
+      const cat = inferProductCategory(googleResult.detectedName, googleResult.brand, googleResult.category);
+      const result: ImageRecognitionResult = {
+        success: true,
+        detectedName: googleResult.detectedName,
+        brand: googleResult.brand || '',
+        model: googleResult.model || googleResult.detectedName,
+        category: cat,
+        confidence: googleResult.confidence,
+        attributes: googleResult.attributes,
+        candidates: googleResult.candidates,
+        extractedText: googleResult.extractedText,
+        extractedPrice: googleResult.detectedPrice,
+        detectedRetailer: googleResult.detectedRetailer,
+        provider: 'google-vision',
+        message: 'Identified with Google Cloud Vision. Confirm model or select candidate object below.',
+      };
+      return res.json(result);
+    }
+
     const customKey = (req.headers['x-nebius-api-key'] as string) || req.body?.apiKey;
     const nebiusKey = (customKey && customKey.trim() !== '' && !customKey.includes('your_'))
       ? customKey.trim()
       : process.env.NEBIUS_API_KEY;
     const isNebiusConfigured = Boolean(nebiusKey && nebiusKey.trim() !== '' && !nebiusKey.includes('your_'));
 
-    // If Nebius or Vision provider is configured with multimodal support
+    // 2. If Nebius or Vision provider is configured with multimodal support
     if (isNebiusConfigured) {
       try {
         const baseUrl = (process.env.NEBIUS_BASE_URL || 'https://api.tokenfactory.us-central1.nebius.com/v1').replace(/\/+$/, '');
@@ -183,6 +207,7 @@ searchRouter.post('/recognize-image', async (req: Request, res: Response) => {
 3. Model
 4. Product category (smartphones, electronics, audio-wearables, gaming, appliances, vehicles, etc.)
 5. Visible attributes (color, storage, variant)
+6. Multiple visible items if present
 
 Respond ONLY with a JSON object:
 {
@@ -191,7 +216,11 @@ Respond ONLY with a JSON object:
   "model": "Model Name",
   "category": "category",
   "confidence": 92,
-  "attributes": ["Attribute 1", "Attribute 2"]
+  "attributes": ["Attribute 1", "Attribute 2"],
+  "candidates": [
+    { "name": "Primary Object", "category": "category", "confidence": 92 },
+    { "name": "Secondary Object", "category": "category", "confidence": 80 }
+  ]
 }`;
 
         const aiResp = await fetch(`${baseUrl}/chat/completions`, {
@@ -217,7 +246,7 @@ Respond ONLY with a JSON object:
               },
             ],
             temperature: 0.1,
-            max_tokens: 300,
+            max_tokens: 350,
           }),
           signal: controller.signal,
         });
@@ -232,6 +261,16 @@ Respond ONLY with a JSON object:
 
           if (parsed && parsed.detectedName) {
             const cat = inferProductCategory(parsed.detectedName, parsed.brand, parsed.category);
+            const candidates = Array.isArray(parsed.candidates)
+              ? parsed.candidates.map((c: any, i: number) => ({
+                  id: `cand-${i}-${Date.now()}`,
+                  name: c.name || parsed.detectedName,
+                  category: inferProductCategory(c.name, parsed.brand, c.category),
+                  confidence: c.confidence || 85,
+                  source: 'nebius-vision' as const,
+                }))
+              : [];
+
             const result: ImageRecognitionResult = {
               success: true,
               detectedName: parsed.detectedName,
@@ -240,6 +279,9 @@ Respond ONLY with a JSON object:
               category: cat,
               confidence: parsed.confidence || 88,
               attributes: parsed.attributes || ['AI visual inspection verified'],
+              candidates: candidates.length > 0 ? candidates : undefined,
+              provider: 'nebius-vision',
+              message: 'Product recognized via Multimodal AI Vision.',
             };
             return res.json(result);
           }
@@ -249,7 +291,7 @@ Respond ONLY with a JSON object:
       }
     }
 
-    // Dynamic, truthful response when Vision model is not configured or times out
+    // 3. Dynamic, truthful response when Vision models are not configured or time out
     const userHint = typeof req.body?.hint === 'string' ? req.body.hint.trim() : '';
     let matchedCatalog = VERIFIED_INDIAN_CATALOG.find((p) => {
       if (!userHint) return false;
@@ -266,6 +308,18 @@ Respond ONLY with a JSON object:
     const model = matchedCatalog?.model || userHint || '';
     const inferredCat = matchedCatalog?.category || (userHint ? inferProductCategory(userHint, brand) : 'smartphones');
 
+    // Build candidate suggestions from benchmark catalog matching the category
+    const categoryMatches = VERIFIED_INDIAN_CATALOG.filter((p) => p.category === inferredCat).slice(0, 3);
+    const benchmarkCandidates = categoryMatches.map((p, idx) => ({
+      id: `bench-${idx}-${Date.now()}`,
+      name: p.name,
+      category: p.category,
+      brand: p.brand,
+      model: p.model,
+      confidence: 85 - idx * 5,
+      source: 'benchmark' as const,
+    }));
+
     const result: ImageRecognitionResult = {
       success: true,
       detectedName,
@@ -273,11 +327,13 @@ Respond ONLY with a JSON object:
       model,
       category: inferredCat,
       confidence: detectedName ? 88 : 70,
-      attributes: ['Visual snapshot captured', 'Select category & confirm model to compare live prices'],
+      attributes: ['Visual snapshot captured', 'Select candidate object or confirm model below'],
+      candidates: benchmarkCandidates,
+      provider: matchedCatalog ? 'verified-catalog' : 'local-ocr',
       isAwaitingConfig: !isNebiusConfigured,
       message: isNebiusConfigured
-        ? 'Photo analysis ready. Please confirm or edit the product model below.'
-        : 'Photo captured! Please enter or confirm the product model and select its category below to compare live prices.',
+        ? 'Photo analysis ready. Please confirm or select candidate object below.'
+        : 'Photo captured! Please enter or confirm product model below or search with Google Lens.',
     };
 
     res.json(result);

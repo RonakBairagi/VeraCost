@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { explainComparisonWithNemotron } from './nebiusClient';
 import { ComparisonAnalysisResult } from '../src/types/cost';
 import { searchRouter } from './searchRoutes';
+import { supportChatRouter } from './supportChat';
 
 dotenv.config();
 
@@ -37,6 +38,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/api/search', searchRouter);
 app.use('/search', searchRouter);
 
+// Support & Vera Assistant Chatbot Routes:
+app.use('/api/support', supportChatRouter);
+app.use('/support', supportChatRouter);
+
 // Health Check
 const healthHandler = (req: Request, res: Response) => {
   res.json({
@@ -53,6 +58,10 @@ app.get('/health', healthHandler);
 const configHandler = (req: Request, res: Response) => {
   const apiKey = process.env.NEBIUS_API_KEY;
   const isLive = Boolean(apiKey && apiKey.trim() !== '' && apiKey.trim() !== 'your_nebius_api_key_here');
+  const googleVisionKey = process.env.GOOGLE_CLOUD_VISION_API_KEY;
+  const isGoogleVisionConfigured = Boolean(
+    googleVisionKey && googleVisionKey.trim() !== '' && !googleVisionKey.includes('your_google_cloud_vision')
+  );
 
   res.json({
     provider: 'Nebius Token Factory',
@@ -60,6 +69,7 @@ const configHandler = (req: Request, res: Response) => {
     baseUrl: process.env.NEBIUS_BASE_URL || 'https://api.tokenfactory.us-central1.nebius.com/v1',
     isLiveConfigured: isLive,
     mode: isLive ? 'live-nemotron' : 'mock-fallback',
+    isGoogleVisionConfigured,
   });
 };
 app.get('/api/config', configHandler);

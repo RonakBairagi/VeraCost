@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Camera, X, AlertCircle, RefreshCw, Barcode, CheckCircle2, SwitchCamera, Sparkles } from 'lucide-react';
+import { Camera, X, AlertCircle, RefreshCw, Barcode, CheckCircle2, SwitchCamera, Sparkles, Search, HelpCircle, ArrowRight } from 'lucide-react';
 import { BarcodeLookupResult } from '../../types/shopping';
 import { ProductCategory } from '../../types/cost';
 import { CATEGORY_OPTIONS } from './ImageSearchModal';
 import { inferProductCategory } from '../../engine/discovery';
-import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
+import { BarcodeScannerEngine, DecodedBarcode } from '../../services/barcodeScannerEngine';
 
 interface BarcodeScannerModalProps {
   isOpen: boolean;
@@ -23,241 +23,132 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   const [isCameraStarting, setIsCameraStarting] = useState(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [manualCode, setManualCode] = useState('');
-  const [detectedCode, setDetectedCode] = useState<string | null>(null);
+  const [scannerEngineType, setScannerEngineType] = useState<string>('google-barcode-detector');
+
+  // Distinct Decoded State
+  const [decodedBarcode, setDecodedBarcode] = useState<DecodedBarcode | null>(null);
   const [isLoadingLookup, setIsLoadingLookup] = useState(false);
 
-  // Unresolved barcode state (when barcode is not in public database)
-  const [unresolvedBarcode, setUnresolvedBarcode] = useState<string | null>(null);
+  // Unresolved barcode resolution state (when barcode is decoded but not found in open catalog)
+  const [isUnresolved, setIsUnresolved] = useState(false);
   const [unresolvedName, setUnresolvedName] = useState<string>('');
   const [unresolvedCategory, setUnresolvedCategory] = useState<ProductCategory>('smartphones');
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const scannerControlsRef = useRef<IScannerControls | null>(null);
-  const zxingReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+  const scannerEngineRef = useRef<BarcodeScannerEngine | null>(null);
   const isComponentMounted = useRef<boolean>(true);
 
   // Stop camera tracks and reader controls
   const stopCamera = useCallback(() => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
+    if (scannerEngineRef.current) {
+      scannerEngineRef.current.stop();
     }
-
-    if (scannerControlsRef.current) {
-      try {
-        scannerControlsRef.current.stop();
-      } catch {}
-      scannerControlsRef.current = null;
-    }
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => {
-        try {
-          track.stop();
-        } catch {}
-      });
-      streamRef.current = null;
-    }
-
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-
     setIsScanning(false);
     setIsCameraStarting(false);
   }, []);
 
-  const handleCodeFound = useCallback(
-    async (code: string) => {
+  const handleBarcodeDecoded = useCallback(
+    async (decoded: DecodedBarcode) => {
       stopCamera();
-      setDetectedCode(code);
+      setDecodedBarcode(decoded);
       setIsLoadingLookup(true);
+      setIsUnresolved(false);
 
       try {
         const resp = await fetch('/api/search/barcode', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ barcode: code }),
+          body: JSON.stringify({ barcode: decoded.rawValue }),
         });
 
         if (resp.ok) {
           const data: BarcodeLookupResult = await resp.json();
           if (data && data.found && data.productName) {
-            onBarcodeDetected(code, data);
+            data.format = decoded.format;
+            onBarcodeDetected(decoded.rawValue, data);
             onClose();
             return;
           }
         }
-      } catch {
-        // Fallback to manual resolver
+      } catch (lookupErr) {
+        console.warn('[BarcodeScanner] Catalog lookup error:', lookupErr);
       } finally {
         setIsLoadingLookup(false);
       }
 
-      // If barcode was not in database, show category & name confirmation
-      setUnresolvedBarcode(code);
+      // If barcode was successfully read but product was not found in catalog,
+      // allow user to search by barcode number directly or confirm model & category
+      setIsUnresolved(true);
       setUnresolvedName('');
-      setUnresolvedCategory('smartphones');
+      setUnresolvedCategory(inferProductCategory(decoded.rawValue));
     },
     [stopCamera, onBarcodeDetected, onClose]
   );
 
-  // Multi-tier camera stream acquisition that works on all laptops & smartphones
-  const acquireCameraStream = async (targetFacing: 'environment' | 'user'): Promise<MediaStream> => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      throw new Error('CAMERA_UNSUPPORTED');
-    }
-
-    // Tier 1: Ideal target facing mode with high-definition frame
-    try {
-      return await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: targetFacing },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
-    } catch (errTier1: any) {
-      console.warn(`[BarcodeScanner] Tier 1 constraint failed (${targetFacing}), trying Tier 2:`, errTier1?.name);
-    }
-
-    // Tier 2: Simple target facing mode without resolution constraints
-    try {
-      return await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: targetFacing },
-        audio: false,
-      });
-    } catch (errTier2: any) {
-      console.warn(`[BarcodeScanner] Tier 2 constraint failed (${targetFacing}), trying opposite facing:`, errTier2?.name);
-    }
-
-    // Tier 3: Try opposite facing mode (e.g. laptop webcam is 'user' when 'environment' was requested)
-    const oppositeFacing = targetFacing === 'environment' ? 'user' : 'environment';
-    try {
-      return await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: oppositeFacing },
-        audio: false,
-      });
-    } catch (errTier3: any) {
-      console.warn(`[BarcodeScanner] Tier 3 constraint failed (${oppositeFacing}), trying generic video:`, errTier3?.name);
-    }
-
-    // Tier 4: Generic video (works with any laptop webcam, USB cam, or virtual camera)
-    return await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: false,
-    });
-  };
-
   const startCamera = useCallback(async () => {
     stopCamera();
     setErrorMessage(null);
-    setDetectedCode(null);
+    setDecodedBarcode(null);
+    setIsUnresolved(false);
     setIsCameraStarting(true);
 
-    if (typeof window !== 'undefined' && !window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    if (
+      typeof window !== 'undefined' &&
+      !window.isSecureContext &&
+      location.hostname !== 'localhost' &&
+      location.hostname !== '127.0.0.1'
+    ) {
       setIsCameraStarting(false);
       setHasPermission(false);
-      setErrorMessage('Camera access requires a secure HTTPS connection. Please enter the barcode number manually below.');
+      setErrorMessage('Camera access requires HTTPS or localhost. Please enter the barcode number manually below.');
       return;
     }
 
     try {
-      const stream = await acquireCameraStream(facingMode);
+      const stream = await BarcodeScannerEngine.acquireCamera(facingMode);
       if (!isComponentMounted.current) {
         stream.getTracks().forEach((t) => t.stop());
         return;
       }
 
-      streamRef.current = stream;
       setHasPermission(true);
 
-      // Attach stream to video element
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.setAttribute('playsinline', 'true');
-        videoRef.current.setAttribute('autoplay', 'true');
-        videoRef.current.setAttribute('muted', 'true');
-
-        try {
-          await videoRef.current.play();
-        } catch (playErr) {
-          console.warn('[BarcodeScanner] Play error:', playErr);
+        if (!scannerEngineRef.current) {
+          scannerEngineRef.current = new BarcodeScannerEngine();
         }
+
+        const engineUsed = await scannerEngineRef.current.start(videoRef.current, stream, {
+          onDetected: (res) => handleBarcodeDecoded(res),
+          onError: (err) => {
+            console.warn('[BarcodeScanner] Decoder warning:', err.message);
+          },
+        });
+
+        setScannerEngineType(
+          engineUsed === 'google-barcode-detector' ? 'Google Barcode Detection API' : 'ZXing MultiFormat Engine'
+        );
       }
 
       setIsScanning(true);
       setIsCameraStarting(false);
-
-      // Barcode detection strategy:
-      // A. If native BarcodeDetector API is present (Android Chrome, Chromium):
-      if ('BarcodeDetector' in window) {
-        try {
-          const barcodeDetector = new (window as any).BarcodeDetector({
-            formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'],
-          });
-
-          const scanLoop = async () => {
-            if (!videoRef.current || !streamRef.current || !isComponentMounted.current) return;
-
-            try {
-              if (videoRef.current.readyState >= 2) {
-                const barcodes = await barcodeDetector.detect(videoRef.current);
-                if (barcodes.length > 0 && barcodes[0].rawValue) {
-                  handleCodeFound(barcodes[0].rawValue);
-                  return;
-                }
-              }
-            } catch {
-              // Frame dropped or blurry, continue next frame
-            }
-
-            animationFrameRef.current = requestAnimationFrame(scanLoop);
-          };
-
-          animationFrameRef.current = requestAnimationFrame(scanLoop);
-          return;
-        } catch (detectorErr) {
-          console.warn('[BarcodeScanner] Native detector init failed, using ZXing:', detectorErr);
-        }
-      }
-
-      // B. Fallback to @zxing/browser (Works on iOS Safari, Firefox, Desktop Chrome):
-      if (videoRef.current) {
-        const reader = new BrowserMultiFormatReader();
-        zxingReaderRef.current = reader;
-
-        try {
-          const controls = await reader.decodeFromVideoElement(videoRef.current, (result) => {
-            if (result && result.getText()) {
-              handleCodeFound(result.getText());
-            }
-          });
-          scannerControlsRef.current = controls;
-        } catch (zxingErr) {
-          console.warn('[BarcodeScanner] ZXing start error:', zxingErr);
-        }
-      }
     } catch (err: any) {
       setIsCameraStarting(false);
       setHasPermission(false);
 
-      if (err.message === 'CAMERA_UNSUPPORTED') {
-        setErrorMessage('Camera access is not supported by your current browser. You can enter the barcode number manually below.');
+      if (err.message === 'CAMERA_NOT_SUPPORTED') {
+        setErrorMessage('Camera access is not supported by your browser. Please enter the barcode manually below.');
       } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setErrorMessage('Camera permission was denied. Please allow camera permissions in your browser address bar or enter the barcode manually.');
+        setErrorMessage('Camera permission was denied. Please allow camera permissions in your address bar or enter the barcode manually.');
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
         setErrorMessage('No camera was detected on this device. You can enter the barcode number manually below.');
       } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-        setErrorMessage('Camera is currently in use by another application or blocked by system permissions. Please close other camera apps and retry.');
+        setErrorMessage('Camera is currently in use by another application. Please close other camera apps and retry.');
       } else {
-        setErrorMessage(`Could not open camera (${err.message || 'Unknown device error'}). You can enter the barcode manually below.`);
+        setErrorMessage(`Could not access camera (${err.message || 'Device error'}). You can enter the barcode manually.`);
       }
     }
-  }, [facingMode, handleCodeFound, stopCamera]);
+  }, [facingMode, handleBarcodeDecoded, stopCamera]);
 
   useEffect(() => {
     isComponentMounted.current = true;
@@ -269,6 +160,10 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
     return () => {
       isComponentMounted.current = false;
+      if (scannerEngineRef.current) {
+        scannerEngineRef.current.destroy();
+        scannerEngineRef.current = null;
+      }
       stopCamera();
     };
   }, [isOpen, startCamera, stopCamera]);
@@ -280,8 +175,43 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (manualCode.trim()) {
-      handleCodeFound(manualCode.trim());
+      handleBarcodeDecoded({
+        rawValue: manualCode.trim(),
+        format: 'Manual Entry',
+        timestamp: new Date().toISOString(),
+        engine: 'zxing-browser',
+      });
     }
+  };
+
+  const handleConfirmUnresolvedSearch = () => {
+    if (!decodedBarcode) return;
+    const finalName = unresolvedName.trim() || `Product Barcode ${decodedBarcode.rawValue}`;
+    const syntheticLookup: BarcodeLookupResult = {
+      found: true,
+      barcode: decodedBarcode.rawValue,
+      format: decodedBarcode.format,
+      productName: finalName,
+      category: unresolvedCategory,
+      source: 'User Confirmed Retail Barcode',
+      message: `Barcode ${decodedBarcode.rawValue} resolved with category ${unresolvedCategory}`,
+    };
+    onBarcodeDetected(decodedBarcode.rawValue, syntheticLookup);
+    onClose();
+  };
+
+  const handleDirectBarcodeRetailerSearch = () => {
+    if (!decodedBarcode) return;
+    const syntheticLookup: BarcodeLookupResult = {
+      found: true,
+      barcode: decodedBarcode.rawValue,
+      format: decodedBarcode.format,
+      productName: decodedBarcode.rawValue,
+      category: unresolvedCategory,
+      source: 'Direct Retailer Barcode Query',
+    };
+    onBarcodeDetected(decodedBarcode.rawValue, syntheticLookup);
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -307,9 +237,9 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
               <Barcode size={20} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.25rem' }}>Live Retail Barcode Scanner</h3>
+              <h3 style={{ fontSize: '1.25rem' }}>Retail Barcode Scanner</h3>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                Scan any EAN-13, EAN-8, or UPC packaging barcode with your camera
+                Powered by Google Barcode Detection & ZXing multi-format decoding
               </p>
             </div>
           </div>
@@ -318,11 +248,43 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
           </button>
         </div>
 
-        {unresolvedBarcode ? (
+        {/* State A: Loading Lookup */}
+        {isLoadingLookup && decodedBarcode && (
+          <div style={{ padding: '2.5rem 1rem', textAlign: 'center' }}>
+            <RefreshCw
+              size={36}
+              className="spin"
+              style={{ color: 'var(--teal-bright)', margin: '0 auto 1rem', display: 'block' }}
+            />
+            <h4 style={{ fontSize: '1.1rem', marginBottom: '0.4rem', color: 'var(--text-main)' }}>
+              Barcode Decoded: {decodedBarcode.rawValue}
+            </h4>
+            <span
+              style={{
+                display: 'inline-block',
+                padding: '0.2rem 0.65rem',
+                borderRadius: 'var(--radius-pill)',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                background: 'rgba(20, 184, 166, 0.15)',
+                color: 'var(--teal-bright)',
+                marginBottom: '0.75rem',
+              }}
+            >
+              Format: {decodedBarcode.format}
+            </span>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              Searching product database & verified Indian retail catalog...
+            </p>
+          </div>
+        )}
+
+        {/* State B: Barcode Decoded but Not Found in Database */}
+        {!isLoadingLookup && isUnresolved && decodedBarcode && (
           <div style={{ padding: '0.5rem 0' }}>
             <div
               style={{
-                padding: '0.85rem 1rem',
+                padding: '0.9rem 1rem',
                 background: 'rgba(20, 184, 166, 0.1)',
                 border: '1px solid rgba(20, 184, 166, 0.25)',
                 borderRadius: 'var(--radius-lg)',
@@ -334,338 +296,326 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             >
               <CheckCircle2 size={24} style={{ color: 'var(--teal-bright)', flexShrink: 0 }} />
               <div>
-                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                  Barcode Identified: <span style={{ fontFamily: 'monospace', color: 'var(--teal-bright)' }}>{unresolvedBarcode}</span>
+                <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                  Barcode Read Successfully:{' '}
+                  <span style={{ fontFamily: 'monospace', color: 'var(--teal-bright)' }}>
+                    {decodedBarcode.rawValue}
+                  </span>
                 </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  Confirm product category to find live Indian retailer offers and assign accurate accessories:
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                  Format: <strong>{decodedBarcode.format}</strong> • Decoded via {decodedBarcode.engine === 'google-barcode-detector' ? 'Google Barcode API' : 'ZXing Engine'}
                 </div>
               </div>
             </div>
 
-            {/* Product Category Selector */}
+            <div
+              style={{
+                padding: '0.8rem 1rem',
+                background: 'rgba(245, 158, 11, 0.1)',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+                borderRadius: 'var(--radius-md)',
+                marginBottom: '1.25rem',
+                fontSize: '0.82rem',
+                color: 'var(--amber-warning)',
+                display: 'flex',
+                gap: '0.5rem',
+              }}
+            >
+              <AlertCircle size={18} style={{ flexShrink: 0, marginTop: 1 }} />
+              <div>
+                This specific barcode is not yet indexed in global open databases. You can search directly across Indian retailers or confirm the product model below:
+              </div>
+            </div>
+
+            {/* Category Selector */}
             <div style={{ marginBottom: '1.25rem' }}>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.45rem', color: 'var(--text-main)' }}>
-                Product Category (determines TCO accessory recommendations)
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  marginBottom: '0.5rem',
+                  color: 'var(--text-main)',
+                }}
+              >
+                1. Select Product Category (for accurate TCO accessories)
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.45rem' }}>
-                {CATEGORY_OPTIONS.map((cat) => {
-                  const isSelected = unresolvedCategory === cat.id;
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setUnresolvedCategory(cat.id)}
-                      style={{
-                        padding: '0.45rem 0.65rem',
-                        borderRadius: 'var(--radius-md)',
-                        fontSize: '0.78rem',
-                        fontWeight: isSelected ? 600 : 400,
-                        background: isSelected ? 'rgba(20, 184, 166, 0.16)' : 'var(--bg-elevated)',
-                        color: isSelected ? 'var(--teal-bright)' : 'var(--text-main)',
-                        border: `1.5px solid ${isSelected ? 'var(--teal-bright)' : 'var(--border-subtle)'}`,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.45rem',
-                        textAlign: 'left',
-                      }}
-                    >
-                      <span style={{ fontSize: '1rem' }}>{cat.icon}</span>
-                      <span>{cat.label}</span>
-                    </button>
-                  );
-                })}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.45rem' }}>
+                {CATEGORY_OPTIONS.slice(0, 6).map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setUnresolvedCategory(opt.id)}
+                    style={{
+                      padding: '0.55rem 0.5rem',
+                      borderRadius: 'var(--radius-md)',
+                      border: unresolvedCategory === opt.id ? '2px solid var(--teal-bright)' : '1px solid var(--border-subtle)',
+                      background: unresolvedCategory === opt.id ? 'rgba(20, 184, 166, 0.12)' : 'var(--bg-card)',
+                      color: unresolvedCategory === opt.id ? 'var(--teal-bright)' : 'var(--text-secondary)',
+                      fontSize: '0.78rem',
+                      fontWeight: unresolvedCategory === opt.id ? 700 : 500,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <span>{opt.icon}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {opt.label.split(' ')[0]}
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Product Model Name */}
+            {/* Model Name Input */}
             <div style={{ marginBottom: '1.25rem' }}>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem', color: 'var(--text-main)' }}>
-                Product Name / Model (Optional)
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  marginBottom: '0.45rem',
+                  color: 'var(--text-main)',
+                }}
+              >
+                2. Product Name or Model (Optional)
               </label>
               <input
                 type="text"
-                className="input-box"
-                placeholder="e.g. iPhone 16 Pro, Sony WH-1000XM5, or Samsung S24"
+                className="form-input"
+                placeholder="e.g. Sony WH-1000XM5, iPhone 16 Pro..."
                 value={unresolvedName}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setUnresolvedName(val);
-                  if (val.trim()) {
-                    setUnresolvedCategory(inferProductCategory(val));
-                  }
-                }}
+                onChange={(e) => setUnresolvedName(e.target.value)}
+                style={{ width: '100%', fontSize: '0.88rem' }}
               />
             </div>
 
-            {/* Submit or Scan Again Actions */}
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleConfirmUnresolvedSearch}
+                style={{ flex: 1, padding: '0.7rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+              >
+                <Search size={16} />
+                <span>Search Product & Compare</span>
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleDirectBarcodeRetailerSearch}
+                style={{ padding: '0.7rem 1rem', whiteSpace: 'nowrap' }}
+                title="Search retailers using the raw barcode digits"
+              >
+                <span>Search by Barcode</span>
+              </button>
               <button
                 type="button"
                 className="btn-secondary"
                 onClick={() => {
-                  setUnresolvedBarcode(null);
+                  setDecodedBarcode(null);
+                  setIsUnresolved(false);
                   startCamera();
                 }}
+                style={{ padding: '0.7rem 1rem' }}
+                title="Scan another barcode"
               >
-                Scan Another Barcode
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => {
-                  const finalName = unresolvedName.trim() || `Product ${unresolvedBarcode}`;
-                  onBarcodeDetected(unresolvedBarcode, {
-                    found: true,
-                    barcode: unresolvedBarcode,
-                    productName: finalName,
-                    category: unresolvedCategory,
-                    source: 'Verified Barcode Scan',
-                  });
-                  onClose();
-                }}
-                style={{
-                  background: 'linear-gradient(135deg, var(--teal-bright), var(--emerald-success))',
-                  fontWeight: 600,
-                }}
-              >
-                <CheckCircle2 size={16} />
-                Search Retailers & Accessories
+                <RefreshCw size={16} />
               </button>
             </div>
           </div>
-        ) : (
-          <>
+        )}
+
+        {/* State C: Live Camera Scanning Interface */}
+        {!isLoadingLookup && !isUnresolved && (
+          <div>
             {/* Camera Viewfinder */}
             <div
               style={{
                 position: 'relative',
                 width: '100%',
-                height: 300,
+                height: 280,
+                background: '#0a0d14',
                 borderRadius: 'var(--radius-lg)',
                 overflow: 'hidden',
-                background: '#04070d',
+                border: '1px solid var(--border-subtle)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                border: '1px solid var(--border-medium)',
-                marginBottom: '1.25rem',
+                marginBottom: '1rem',
               }}
             >
-              {/* Always-mounted video element ensures clean ref binding */}
               <video
                 ref={videoRef}
-                autoPlay
-                playsInline
-                muted
                 style={{
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
-                  display: isScanning && !errorMessage ? 'block' : 'none',
+                  display: isScanning ? 'block' : 'none',
                 }}
+                playsInline
+                muted
+                autoPlay
               />
 
-              {/* Camera Starting / Spinner */}
               {isCameraStarting && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.75rem',
-                    color: 'var(--teal-bright)',
-                    background: '#04070d',
-                  }}
-                >
-                  <RefreshCw size={32} className="spin" />
-                  <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
-                    Connecting camera...
-                  </div>
+                <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <RefreshCw size={32} className="spin" style={{ color: 'var(--teal-bright)', margin: '0 auto 0.75rem' }} />
+                  <p style={{ fontSize: '0.88rem' }}>Starting camera preview...</p>
                 </div>
               )}
 
-              {/* Camera Flip / Controls overlay */}
-              {isScanning && !errorMessage && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '0.75rem',
-                    right: '0.75rem',
-                    display: 'flex',
-                    gap: '0.5rem',
-                    zIndex: 10,
-                  }}
-                >
+              {errorMessage && !isCameraStarting && (
+                <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--amber-warning)', maxWidth: 380 }}>
+                  <AlertCircle size={32} style={{ margin: '0 auto 0.75rem' }} />
+                  <p style={{ fontSize: '0.85rem', lineHeight: 1.45, marginBottom: '1rem' }}>{errorMessage}</p>
                   <button
-                    type="button"
-                    onClick={toggleCameraFacing}
-                    title="Switch front/back camera"
-                    style={{
-                      background: 'rgba(0, 0, 0, 0.65)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      color: '#ffffff',
-                      borderRadius: 'var(--radius-full)',
-                      padding: '0.4rem 0.75rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                      fontSize: '0.75rem',
-                      cursor: 'pointer',
-                      backdropFilter: 'blur(4px)',
-                    }}
+                    className="btn-secondary"
+                    onClick={startCamera}
+                    style={{ padding: '0.45rem 0.9rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                   >
-                    <SwitchCamera size={14} />
-                    <span>{facingMode === 'environment' ? 'Rear Cam' : 'Front Cam'}</span>
+                    <RefreshCw size={14} /> Retry Camera
                   </button>
                 </div>
               )}
 
-              {/* Scanning Reticle Overlay */}
-              {isScanning && !errorMessage && (
+              {/* Viewfinder Target Overlay */}
+              {isScanning && (
                 <div
                   style={{
                     position: 'absolute',
-                    inset: 0,
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    pointerEvents: 'none',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    pointerEvents: 'none',
                   }}
                 >
                   <div
                     style={{
-                      width: '80%',
-                      height: 150,
+                      width: 250,
+                      height: 120,
                       border: '2px dashed var(--teal-bright)',
-                      borderRadius: 12,
-                      boxShadow: '0 0 25px rgba(20, 184, 166, 0.3), inset 0 0 15px rgba(20, 184, 166, 0.2)',
+                      borderRadius: 'var(--radius-md)',
+                      boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.45)',
                       position: 'relative',
                     }}
                   >
-                    {/* Center scan line animation */}
                     <div
                       style={{
                         position: 'absolute',
                         top: '50%',
-                        left: '5%',
-                        right: '5%',
+                        left: 0,
+                        right: 0,
                         height: 2,
-                        background: 'var(--teal-bright)',
+                        background: 'rgba(20, 184, 166, 0.85)',
                         boxShadow: '0 0 8px var(--teal-bright)',
                       }}
                     />
                   </div>
                   <div
                     style={{
-                      marginTop: '0.75rem',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      color: '#ffffff',
-                      background: 'rgba(0, 0, 0, 0.65)',
+                      marginTop: '0.85rem',
                       padding: '0.25rem 0.75rem',
-                      borderRadius: 'var(--radius-full)',
+                      background: 'rgba(0, 0, 0, 0.75)',
+                      borderRadius: 'var(--radius-pill)',
+                      fontSize: '0.74rem',
+                      color: 'var(--teal-bright)',
+                      fontWeight: 600,
                       backdropFilter: 'blur(4px)',
                     }}
                   >
-                    Align product barcode inside frame
+                    Align EAN-13, EAN-8, or UPC barcode horizontally
                   </div>
                 </div>
               )}
 
-              {/* Loading lookup overlay */}
-              {isLoadingLookup && (
-                <div
+              {/* Switch Camera Button */}
+              {isScanning && (
+                <button
+                  type="button"
+                  onClick={toggleCameraFacing}
                   style={{
                     position: 'absolute',
-                    inset: 0,
-                    background: 'rgba(15, 23, 42, 0.88)',
+                    top: '0.75rem',
+                    right: '0.75rem',
+                    background: 'rgba(0, 0, 0, 0.65)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    color: '#fff',
+                    borderRadius: 'var(--radius-pill)',
+                    padding: '0.35rem 0.65rem',
+                    fontSize: '0.72rem',
                     display: 'flex',
-                    flexDirection: 'column',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.75rem',
-                    zIndex: 20,
+                    gap: '0.35rem',
+                    cursor: 'pointer',
+                    backdropFilter: 'blur(4px)',
                   }}
+                  title="Switch between front/back or laptop cameras"
                 >
-                  <RefreshCw size={28} className="spin" style={{ color: 'var(--teal-bright)' }} />
-                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)' }}>
-                    Identified Barcode {detectedCode} — Fetching verified details...
-                  </div>
-                </div>
-              )}
-
-              {/* Permission / Error / Fallback State */}
-              {errorMessage && (
-                <div
-                  style={{
-                    padding: '1.5rem',
-                    textAlign: 'center',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    zIndex: 10,
-                  }}
-                >
-                  <AlertCircle size={32} style={{ color: 'var(--amber-warning)' }} />
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: 420 }}>
-                    {errorMessage}
-                  </div>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={startCamera}
-                    style={{ padding: '0.45rem 1rem', fontSize: '0.82rem' }}
-                  >
-                    <RefreshCw size={14} />
-                    Try Camera Again
-                  </button>
-                </div>
+                  <SwitchCamera size={13} />
+                  <span>{facingMode === 'environment' ? 'Rear' : 'Front'}</span>
+                </button>
               )}
             </div>
 
-            {/* Manual Barcode Fallback Form */}
-            <div>
+            {/* Engine indicator */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: '0.74rem',
+                color: 'var(--text-muted)',
+                marginBottom: '1rem',
+                padding: '0 0.25rem',
+              }}
+            >
+              <span>Formats: EAN-13, EAN-8, UPC-A, UPC-E, Code 128, Code 39</span>
+              <span style={{ color: 'var(--teal-bright)', fontWeight: 600 }}>{scannerEngineType}</span>
+            </div>
+
+            {/* Manual Entry Fallback */}
+            <form onSubmit={handleManualSubmit} style={{ marginTop: '0.5rem' }}>
               <label
                 style={{
                   display: 'block',
                   fontSize: '0.82rem',
                   fontWeight: 600,
+                  marginBottom: '0.45rem',
                   color: 'var(--text-main)',
-                  marginBottom: '0.4rem',
                 }}
               >
-                Or Enter Barcode Number Manually
+                Or Enter Barcode Digits Manually:
               </label>
-              <form onSubmit={handleManualSubmit} style={{ display: 'flex', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <input
                   type="text"
-                  className="input-box"
-                  placeholder="e.g. 0195949791484 or 8806095368948"
+                  className="form-input"
+                  placeholder="e.g. 8901030384729"
                   value={manualCode}
-                  onChange={(e) => setManualCode(e.target.value.replace(/[^0-9]/g, ''))}
-                  style={{ flex: 1, fontFamily: 'monospace' }}
+                  onChange={(e) => setManualCode(e.target.value)}
+                  style={{ flex: 1, fontSize: '0.88rem' }}
                 />
                 <button
                   type="submit"
                   className="btn-primary"
                   disabled={!manualCode.trim()}
-                  style={{ padding: '0.55rem 1.25rem', whiteSpace: 'nowrap' }}
+                  style={{ padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                 >
-                  Look Up
+                  <Search size={15} /> Look Up
                 </button>
-              </form>
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                Supports EAN-13, EAN-8, UPC-A, and UPC-E codes found on consumer electronics, smartphones, and retail packaging.
               </div>
-            </div>
-          </>
+            </form>
+          </div>
         )}
       </div>
     </div>
