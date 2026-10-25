@@ -106,4 +106,91 @@ describe('VeraCost Upgrade — Scanner, Visual Search, Support & AI Chatbot Test
       expect(resp.text).toContain('Estimated Checkout Cost');
     });
   });
+
+  describe('Contact & Support Mailto Standards', () => {
+    it('creates pre-filled mailto URL addressed to ronakbairagi83@gmail.com with structured template', async () => {
+      const { createSupportMailtoUrl } = await import('../src/config/support');
+      const mailto = createSupportMailtoUrl();
+
+      expect(mailto).toContain('mailto:ronakbairagi83@gmail.com');
+      expect(mailto).toContain('subject=VeraCost%20Support%20Request');
+      expect(mailto).toContain('Hello%20VeraCost%20Support%20Team');
+      expect(mailto).toContain('Issue%20description%3A');
+      expect(mailto).toContain('Steps%20to%20reproduce%3A');
+      expect(mailto).toContain('Expected%20result%3A');
+      expect(mailto).toContain('Actual%20result%3A');
+      expect(mailto).toContain('Browser%2Fdevice%3A');
+      expect(mailto).toContain('Thank%20you.');
+    });
+
+    it('embeds custom subject and user issue description into mailto template', async () => {
+      const { createSupportMailtoUrl } = await import('../src/config/support');
+      const customSubject = 'Barcode scan issue with EAN-13';
+      const customDesc = 'Camera preview opened but barcode was not read under warm lighting';
+      const mailto = createSupportMailtoUrl(customSubject, customDesc);
+
+      expect(mailto).toContain(encodeURIComponent(customSubject));
+      expect(mailto).toContain(encodeURIComponent(customDesc));
+      expect(mailto).toContain('mailto:ronakbairagi83@gmail.com');
+    });
+  });
+
+  describe('Google Lens Search & URL Validation', () => {
+    it('accurately distinguishes public HTTP/HTTPS images from local dataUrls or localhost', async () => {
+      const { isPublicImageUrl } = await import('../src/utils/googleLens');
+
+      // Public URLs supported by Google Lens uploadbyurl
+      expect(isPublicImageUrl('https://m.media-amazon.com/images/I/71yzJoE7WlL._SX679_.jpg')).toBe(true);
+      expect(isPublicImageUrl('http://example.com/product.png')).toBe(true);
+
+      // Local / temporary / private URLs that Google servers CANNOT fetch
+      expect(isPublicImageUrl('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...')).toBe(false);
+      expect(isPublicImageUrl('blob:http://localhost:5173/b3d4f5-a1b2')).toBe(false);
+      expect(isPublicImageUrl('http://localhost:3000/test.png')).toBe(false);
+      expect(isPublicImageUrl('http://127.0.0.1:8080/image.jpg')).toBe(false);
+      expect(isPublicImageUrl('')).toBe(false);
+      expect(isPublicImageUrl(null)).toBe(false);
+      expect(isPublicImageUrl(undefined)).toBe(false);
+    });
+  });
+
+  describe('Evidence-Based Visual Analysis & Non-Product Filtering', () => {
+    it('filters out human anatomical labels and UI noise from commercial product detection', async () => {
+      const { isCommercialProductLabel } = await import('../server/services/googleVision');
+
+      // Anatomical and noise labels must be rejected
+      expect(isCommercialProductLabel('Hand')).toBe(false);
+      expect(isCommercialProductLabel('finger')).toBe(false);
+      expect(isCommercialProductLabel('skin')).toBe(false);
+      expect(isCommercialProductLabel('flesh')).toBe(false);
+      expect(isCommercialProductLabel('nail')).toBe(false);
+      expect(isCommercialProductLabel('gesture')).toBe(false);
+      expect(isCommercialProductLabel('screenshot')).toBe(false);
+      expect(isCommercialProductLabel('rectangle')).toBe(false);
+      expect(isCommercialProductLabel('room')).toBe(false);
+
+      // Genuine products and commercial brands must be accepted
+      expect(isCommercialProductLabel('Headphones')).toBe(true);
+      expect(isCommercialProductLabel('Laptop')).toBe(true);
+      expect(isCommercialProductLabel('Sony WH-1000XM5')).toBe(true);
+      expect(isCommercialProductLabel('Smartphone')).toBe(true);
+      expect(isCommercialProductLabel('Microwave')).toBe(true);
+    });
+
+    it('falls back to category "other" instead of inventing "smartphones" or "electronics"', async () => {
+      const { inferProductCategory } = await import('../src/engine/discovery');
+
+      // Unrecognized/ambiguous text must never invent smartphones
+      expect(inferProductCategory('Random Unclear Object')).toBe('other');
+      expect(inferProductCategory('', '')).toBe('other');
+      expect(inferProductCategory(undefined, undefined)).toBe('other');
+
+      // Known products remain accurately mapped
+      expect(inferProductCategory('iPhone 16 Pro')).toBe('smartphones');
+      expect(inferProductCategory('Sony WH-1000XM5')).toBe('audio-wearables');
+      expect(inferProductCategory('MacBook Pro M3')).toBe('electronics');
+      expect(inferProductCategory('PlayStation 5')).toBe('gaming');
+      expect(inferProductCategory('Samsung 253L Refrigerator')).toBe('appliances');
+    });
+  });
 });

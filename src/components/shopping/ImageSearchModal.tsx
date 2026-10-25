@@ -19,6 +19,7 @@ import { ImageRecognitionResult, DetectedCandidateObject } from '../../types/sho
 import { ProductCategory } from '../../types/cost';
 import { inferProductCategory } from '../../engine/discovery';
 import { BarcodeScannerEngine } from '../../services/barcodeScannerEngine';
+import { executeGoogleLensSearch } from '../../utils/googleLens';
 
 interface ImageSearchModalProps {
   isOpen: boolean;
@@ -48,6 +49,7 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
   const [confirmedName, setConfirmedName] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>('smartphones');
   const [error, setError] = useState<string | null>(null);
+  const [lensNotice, setLensNotice] = useState<string | null>(null);
 
   // Selected candidate object (when photo contains multiple items)
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
@@ -403,10 +405,15 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
     setError(null);
   };
 
-  // Google Lens external search action
-  const handleOpenGoogleLens = () => {
-    // Open Google Lens web workflow in new tab
-    window.open('https://lens.google.com/uploadbyurl', '_blank', 'noopener,noreferrer');
+  // Google Lens external search action using optimal workflow
+  const handleOpenGoogleLens = async () => {
+    try {
+      const res = await executeGoogleLensSearch(selectedImage);
+      setLensNotice(res.message);
+      setTimeout(() => setLensNotice(null), 8000);
+    } catch (err: any) {
+      window.open('https://lens.google.com', '_blank', 'noopener,noreferrer');
+    }
   };
 
   if (!isOpen) return null;
@@ -664,6 +671,26 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
                 <span>Search with Google Lens</span>
               </button>
             </div>
+
+            {lensNotice && (
+              <div
+                style={{
+                  marginTop: '0.85rem',
+                  padding: '0.65rem 0.85rem',
+                  background: 'rgba(59, 130, 246, 0.1)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.78rem',
+                  color: 'var(--text-main)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <Sparkles size={15} style={{ color: 'var(--blue-highlight, #3b82f6)', flexShrink: 0 }} />
+                <span>{lensNotice}</span>
+              </div>
+            )}
           </div>
         )}
 

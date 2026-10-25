@@ -67,6 +67,7 @@ export const App: React.FC = () => {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isNewComparisonModalOpen, setIsNewComparisonModalOpen] = useState(false);
   const [isScreenshotModalOpen, setIsScreenshotModalOpen] = useState(false);
+  const [pastedScreenshot, setPastedScreenshot] = useState<string | null>(null);
   const [isAssistantChatOpen, setIsAssistantChatOpen] = useState(false);
 
   // Check server configuration on mount
@@ -87,6 +88,77 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     checkServerConfig();
+  }, []);
+
+  // Global listener for screenshot paste (Ctrl+V) and drag-and-drop from OS or other windows
+  useEffect(() => {
+    let lastPasteTime = 0;
+
+    const handleGlobalPaste = (e: ClipboardEvent) => {
+      // If user is currently focused in an input/textarea, ignore if pasting plain text
+      const target = e.target as HTMLElement;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          const now = Date.now();
+          if (now - lastPasteTime < 1500) {
+            e.preventDefault();
+            return;
+          }
+          lastPasteTime = now;
+
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            const reader = new FileReader();
+            reader.onload = () => {
+              const dataUrl = reader.result as string;
+              setPastedScreenshot(dataUrl);
+              setIsScreenshotModalOpen(true);
+            };
+            reader.readAsDataURL(file);
+            break;
+          }
+        }
+      }
+    };
+
+    const handleGlobalDrop = (e: DragEvent) => {
+      const files = e.dataTransfer?.files;
+      if (!files || files.length === 0) return;
+
+      const imageFile = Array.from(files).find((f) => f.type.startsWith('image/'));
+      if (imageFile) {
+        e.preventDefault();
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result as string;
+          setPastedScreenshot(dataUrl);
+          setIsScreenshotModalOpen(true);
+        };
+        reader.readAsDataURL(imageFile);
+      }
+    };
+
+    const handleGlobalDragOver = (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes('Files')) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('paste', handleGlobalPaste);
+    window.addEventListener('drop', handleGlobalDrop);
+    window.addEventListener('dragover', handleGlobalDragOver);
+
+    return () => {
+      window.removeEventListener('paste', handleGlobalPaste);
+      window.removeEventListener('drop', handleGlobalDrop);
+      window.removeEventListener('dragover', handleGlobalDragOver);
+    };
   }, []);
 
   // Sync currency changes into project
@@ -276,7 +348,12 @@ export const App: React.FC = () => {
       {/* Screenshot & Image Import Modal */}
       <ScreenshotImportModal
         isOpen={isScreenshotModalOpen}
-        onClose={() => setIsScreenshotModalOpen(false)}
+        initialImage={pastedScreenshot}
+        onClearInitialImage={() => setPastedScreenshot(null)}
+        onClose={() => {
+          setIsScreenshotModalOpen(false);
+          setPastedScreenshot(null);
+        }}
         onProductImported={(name, category, price) => {
           handleImportFromShopping({
             name,

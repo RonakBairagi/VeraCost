@@ -33,6 +33,27 @@ export interface GoogleVisionAnalysis {
 }
 
 /**
+ * Labels and entities that represent human anatomy, UI artifacts, or non-commercial background elements
+ */
+export const NON_PRODUCT_LABELS = new Set([
+  'hand', 'finger', 'thumb', 'wrist', 'arm', 'skin', 'flesh', 'nail', 'gesture',
+  'face', 'head', 'hair', 'person', 'human', 'people', 'man', 'woman', 'child',
+  'screenshot', 'font', 'text', 'line', 'parallel', 'slope', 'angle', 'circle',
+  'rectangle', 'pattern', 'multimedia', 'software', 'operating system', 'website',
+  'web page', 'document', 'paper', 'material property', 'room', 'wall', 'floor',
+  'ceiling', 'interior design', 'furniture', 'table', 'desk', 'photography',
+  'snapshot', 'monochrome', 'black-and-white', 'lighting', 'shadow', 'wood',
+  'unknown product', 'object', 'item'
+]);
+
+export function isCommercialProductLabel(label?: string | null): boolean {
+  if (!label || typeof label !== 'string') return false;
+  const cleaned = label.trim().toLowerCase();
+  if (cleaned.length < 2) return false;
+  return !NON_PRODUCT_LABELS.has(cleaned);
+}
+
+/**
  * Perform server-side Google Cloud Vision analysis on a base64 encoded image
  */
 export async function analyzeImageWithGoogleVision(
@@ -87,54 +108,75 @@ export async function analyzeImageWithGoogleVision(
     const result = data?.responses?.[0];
     if (!result) return null;
 
-    // 1. Extract Localized Objects (Candidate Objects)
+    // 1. Extract Localized Objects (Candidate Objects) - filtering out human body parts
     const rawObjects = result.localizedObjectAnnotations || [];
-    const candidates: GoogleVisionAnalysis['candidates'] = rawObjects.map((obj: any, idx: number) => {
-      const normVerts = obj.boundingPoly?.normalizedVertices || [];
-      const x = normVerts[0]?.x || 0;
-      const y = normVerts[0]?.y || 0;
-      const x2 = normVerts[2]?.x || 1;
-      const y2 = normVerts[2]?.y || 1;
+    const candidates: GoogleVisionAnalysis['candidates'] = rawObjects
+      .filter((obj: any) => isCommercialProductLabel(obj.name))
+      .map((obj: any, idx: number) => {
+        const normVerts = obj.boundingPoly?.normalizedVertices || [];
+        const x = normVerts[0]?.x || 0;
+        const y = normVerts[0]?.y || 0;
+        const x2 = normVerts[2]?.x || 1;
+        const y2 = normVerts[2]?.y || 1;
 
-      return {
-        id: `obj-${idx}-${Date.now()}`,
-        name: obj.name || 'Identified Object',
-        category: categorizeVisionLabel(obj.name),
-        confidence: Math.round((obj.score || 0.8) * 100),
-        boundingBox: {
-          x,
-          y,
-          width: Math.max(0.1, x2 - x),
-          height: Math.max(0.1, y2 - y),
-        },
-        source: 'google-vision',
-      };
-    });
+        return {
+          id: `obj-${idx}-${Date.now()}`,
+          name: obj.name || 'Identified Object',
+          category: categorizeVisionLabel(obj.name),
+          confidence: Math.round((obj.score || 0.8) * 100),
+          boundingBox: {
+            x,
+            y,
+            width: Math.max(0.1, x2 - x),
+            height: Math.max(0.1, y2 - y),
+          },
+          source: 'google-vision' as const,
+        };
+      });
 
     // 2. Extract Web Detection (Best-guess product title & entities)
     const webDetection = result.webDetection || {};
-    const bestGuessLabels = webDetection.bestGuessLabels?.map((l: any) => l.label) || [];
-    const webEntities = webDetection.webEntities?.map((e: any) => e.description).filter(Boolean) || [];
+    const bestGuessLabels = (webDetection.bestGuessLabels?.map((l: any) => l.label) || []).filter(isCommercialProductLabel);
+    const webEntities = (webDetection.webEntities?.map((e: any) => e.description).filter(Boolean) || []).filter(isCommercialProductLabel);
 
-    // 3. Extract Label Annotations
-    const labels = result.labelAnnotations?.map((l: any) => l.description).filter(Boolean) || [];
+    // 3. Extract Label Annotations - filtering non-products
+    const labels = (result.labelAnnotations?.map((l: any) => l.description).filter(Boolean) || []).filter(isCommercialProductLabel);
 
     // 4. Extract OCR Text (packaging text, model numbers, price digits)
     const fullText = result.fullTextAnnotation?.text || result.textAnnotations?.[0]?.description || '';
     const { detectedPrice, detectedRetailer, modelHint } = parseOcrDetails(fullText);
+    const detectedBrand = extractBrandFromLabels([...webEntities, ...labels, fullText]);
 
     // Primary detected product name:
-    // Prefer best guess label from web detection, then top localized object or web entity
-    const primaryName = bestGuessLabels[0] || webEntities[0] || candidates[0]?.name || labels[0] || 'Unknown Product';
-    const category = categorizeVisionLabel(primaryName + ' ' + labels.join(' '));
+    // Strictly require evidence of an actual commercial product or brand.
+    const primaryName = bestGuessLabels[0] || webEntities[0] || candidates[0]?.name || (labels.length > 0 ? labels[0] : '');
+
+    // If no commercial product name, brand, or model hint was found, do NOT invent one
+    if (!primaryName && !detectedBrand && !modelHint) {
+      return {
+        success: false,
+        configured: true,
+        provider: 'google-vision',
+        detectedName: '',
+        confidence: 0,
+        attributes: labels.slice(0, 5),
+        candidates: [],
+        extractedText: fullText.slice(0, 500),
+        detectedPrice,
+        detectedRetailer,
+      };
+    }
+
+    const effectiveName = primaryName || (detectedBrand ? `${detectedBrand} ${modelHint || 'Product'}` : (modelHint || ''));
+    const category = categorizeVisionLabel(effectiveName + ' ' + labels.join(' '));
 
     return {
       success: true,
       configured: true,
       provider: 'google-vision',
-      detectedName: primaryName,
-      brand: extractBrandFromLabels([...webEntities, ...labels, fullText]),
-      model: modelHint || primaryName,
+      detectedName: effectiveName,
+      brand: detectedBrand,
+      model: modelHint || effectiveName,
       category,
       confidence: Math.min(96, Math.max(75, Math.round((result.labelAnnotations?.[0]?.score || 0.88) * 100))),
       attributes: labels.slice(0, 5),
@@ -173,7 +215,7 @@ function categorizeVisionLabel(text: string): string {
   if (lower.includes('car') || lower.includes('vehicle') || lower.includes('motorcycle') || lower.includes('scooter') || lower.includes('ev')) {
     return 'vehicles';
   }
-  return 'smartphones';
+  return 'other';
 }
 
 /**

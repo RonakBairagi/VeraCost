@@ -17,7 +17,7 @@ import {
   MapPin,
   Sparkles
 } from 'lucide-react';
-import { SUPPORT_CONFIG, FaqItem, TroubleshootingGuide } from '../config/support';
+import { SUPPORT_CONFIG, FaqItem, TroubleshootingGuide, createSupportMailtoUrl } from '../config/support';
 
 interface SupportPageProps {
   onNavigateToShopping?: () => void;
@@ -62,12 +62,14 @@ export const SupportPage: React.FC<SupportPageProps> = ({
       return;
     }
 
-    // Generate pre-filled mailto link as working fallback
-    const mailtoUrl = `mailto:${dev.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(
-      `From: ${senderEmail || 'Anonymous User'}\n\nMessage:\n${message}`
-    )}`;
+    // Generate pre-filled mailto link using official template
+    const fullMessage = senderEmail 
+      ? `${message.trim()}\n\nReply-To Email: ${senderEmail.trim()}`
+      : message.trim();
+    const mailtoUrl = createSupportMailtoUrl(subject, fullMessage);
 
-    window.open(mailtoUrl, '_blank');
+    // Open user's configured email client
+    window.location.href = mailtoUrl;
     setFormSubmitted(true);
   };
 
@@ -158,6 +160,8 @@ export const SupportPage: React.FC<SupportPageProps> = ({
               {/* Phone Action */}
               <a
                 href={`tel:${dev.phone}`}
+                aria-label={`Call lead developer ${dev.name} at ${dev.formattedPhone}`}
+                title="Call lead developer directly"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -168,7 +172,7 @@ export const SupportPage: React.FC<SupportPageProps> = ({
                   border: '1px solid rgba(20, 184, 166, 0.2)',
                   color: 'var(--text-main)',
                   textDecoration: 'none',
-                  transition: 'background 0.2s',
+                  transition: 'all 0.2s ease',
                 }}
               >
                 <Phone size={18} style={{ color: 'var(--teal-bright)' }} />
@@ -182,7 +186,9 @@ export const SupportPage: React.FC<SupportPageProps> = ({
 
               {/* Email Action */}
               <a
-                href={`mailto:${dev.email}`}
+                href={createSupportMailtoUrl()}
+                aria-label={`Email support at ${dev.email}`}
+                title="Open configured mail client with pre-filled support template"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -193,16 +199,28 @@ export const SupportPage: React.FC<SupportPageProps> = ({
                   border: '1px solid rgba(59, 130, 246, 0.2)',
                   color: 'var(--text-main)',
                   textDecoration: 'none',
-                  transition: 'background 0.2s',
+                  transition: 'all 0.2s ease',
                 }}
               >
                 <Mail size={18} style={{ color: 'var(--blue-highlight, #3b82f6)' }} />
-                <div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Official Email</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Official Support Email</div>
                   <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--blue-highlight, #3b82f6)' }}>
                     {dev.email}
                   </div>
                 </div>
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'rgba(59, 130, 246, 0.15)',
+                    color: 'var(--blue-highlight, #3b82f6)',
+                    fontWeight: 600,
+                  }}
+                >
+                  Email Support
+                </span>
               </a>
             </div>
           </div>
@@ -256,10 +274,13 @@ export const SupportPage: React.FC<SupportPageProps> = ({
             >
               <CheckCircle2 size={36} style={{ color: 'var(--teal-bright)', margin: '0 auto 0.75rem' }} />
               <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
-                Support Message Prepared
+                Email Draft Prepared in Your Mail Client
               </h4>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.45 }}>
-                Your email client has been opened with your message pre-addressed to <strong>{dev.email}</strong>.
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', lineHeight: 1.45 }}>
+                Your device's email application has been opened with your message pre-addressed to <strong>{dev.email}</strong>.
+              </p>
+              <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '1rem', lineHeight: 1.4 }}>
+                <em>Note: A mailto link creates a pre-filled draft in your mail app. Please click <strong>Send</strong> in your email client to dispatch your message.</em>
               </p>
               <button
                 type="button"
@@ -271,7 +292,7 @@ export const SupportPage: React.FC<SupportPageProps> = ({
                 }}
                 style={{ padding: '0.45rem 0.9rem', fontSize: '0.8rem' }}
               >
-                Send Another Note
+                Draft Another Message
               </button>
             </div>
           ) : (

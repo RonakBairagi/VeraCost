@@ -291,7 +291,7 @@ Respond ONLY with a JSON object:
       }
     }
 
-    // 3. Dynamic, truthful response when Vision models are not configured or time out
+    // 3. Truthful, evidence-based response when Vision models are not configured or inconclusive
     const userHint = typeof req.body?.hint === 'string' ? req.body.hint.trim() : '';
     let matchedCatalog = VERIFIED_INDIAN_CATALOG.find((p) => {
       if (!userHint) return false;
@@ -306,9 +306,28 @@ Respond ONLY with a JSON object:
     const detectedName = matchedCatalog?.name || userHint || '';
     const brand = matchedCatalog?.brand || '';
     const model = matchedCatalog?.model || userHint || '';
-    const inferredCat = matchedCatalog?.category || (userHint ? inferProductCategory(userHint, brand) : 'smartphones');
 
-    // Build candidate suggestions from benchmark catalog matching the category
+    // If no verified product or hint was supplied, do NOT invent fake smartphone models or prices
+    if (!detectedName) {
+      const result: ImageRecognitionResult = {
+        success: false,
+        detectedName: '',
+        brand: '',
+        model: '',
+        category: 'other',
+        confidence: 0,
+        attributes: ['Visual snapshot captured'],
+        candidates: [],
+        provider: 'local-ocr',
+        isAwaitingConfig: !isNebiusConfigured,
+        message: 'Could not confidently identify this product from the screenshot.',
+      };
+      return res.json(result);
+    }
+
+    const inferredCat = matchedCatalog?.category || inferProductCategory(detectedName, brand);
+
+    // Build candidate suggestions from benchmark catalog only when there is a confirmed product category
     const categoryMatches = VERIFIED_INDIAN_CATALOG.filter((p) => p.category === inferredCat).slice(0, 3);
     const benchmarkCandidates = categoryMatches.map((p, idx) => ({
       id: `bench-${idx}-${Date.now()}`,
@@ -326,28 +345,27 @@ Respond ONLY with a JSON object:
       brand,
       model,
       category: inferredCat,
-      confidence: detectedName ? 88 : 70,
-      attributes: ['Visual snapshot captured', 'Select candidate object or confirm model below'],
+      confidence: 88,
+      attributes: ['Visual snapshot captured', 'Confirmed via user input or verified catalog'],
       candidates: benchmarkCandidates,
       provider: matchedCatalog ? 'verified-catalog' : 'local-ocr',
       isAwaitingConfig: !isNebiusConfigured,
-      message: isNebiusConfigured
-        ? 'Photo analysis ready. Please confirm or select candidate object below.'
-        : 'Photo captured! Please enter or confirm product model below or search with Google Lens.',
+      message: 'Product model confirmed. You can compare verified Indian retailer prices below.',
     };
 
     res.json(result);
   } catch (err: any) {
     console.error('Image Recognition unexpected error:', err);
     res.json({
-      success: true,
+      success: false,
       detectedName: '',
       brand: '',
       model: '',
-      category: 'smartphones',
-      confidence: 60,
-      attributes: ['Visual snapshot captured'],
-      message: 'Photo captured! Confirm or enter the product model below to search retailers.',
+      category: 'other',
+      confidence: 0,
+      attributes: [],
+      candidates: [],
+      message: 'Could not confidently identify this product from the screenshot.',
     });
   }
 });

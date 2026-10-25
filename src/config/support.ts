@@ -137,3 +137,38 @@ export const SUPPORT_CONFIG: {
     },
   ],
 };
+
+/**
+ * Generates a pre-filled mailto URL conforming to VeraCost Support Request standards
+ */
+export function createSupportMailtoUrl(customSubject?: string, customDescription?: string): string {
+  const recipient = SUPPORT_CONFIG.leadDeveloper.email;
+  const subject = customSubject?.trim() || 'VeraCost Support Request';
+  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown';
+
+  const body = `Hello VeraCost Support Team,
+
+I need assistance with VeraCost.
+
+Issue description:
+${customDescription && customDescription.trim() ? customDescription.trim() : '[Please describe your question or issue here]'}
+
+Steps to reproduce:
+1. 
+2. 
+3. 
+
+Expected result:
+
+
+Actual result:
+
+
+Browser/device:
+${userAgent}
+
+Thank you.`;
+
+  return `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+

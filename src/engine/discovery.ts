@@ -548,7 +548,7 @@ export function inferProductCategory(name?: string, brand?: string, rawCategory?
     return 'cloud-software';
   }
 
-  return 'electronics';
+  return 'other';
 }
 
 /**
