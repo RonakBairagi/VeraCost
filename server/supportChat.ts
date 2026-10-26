@@ -43,22 +43,30 @@ Your Core Capabilities & Guidelines:
    - Clarify that estimated checkout costs include delivery, mandatory fees, and standard taxes.
    - Be helpful, concise, professional, and friendly.`;
 
-supportChatRouter.post('/chat', async (req: Request, res: Response) => {
+const handleChatRequest = async (req: Request, res: Response) => {
+  let trimmedQuery = '';
+  let priorTurns: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+
   try {
     const { messages, userMessage } = req.body || {};
 
-    const latestText = userMessage || (Array.isArray(messages) && (messages[messages.length - 1]?.content || messages[messages.length - 1]?.text));
-    if (!latestText || typeof latestText !== 'string' || latestText.trim() === '') {
-      return res.status(400).json({ error: 'Message content is required.' });
+    const rawText = userMessage || (Array.isArray(messages) && (messages[messages.length - 1]?.content || messages[messages.length - 1]?.text));
+    trimmedQuery = (typeof rawText === 'string' ? rawText : String(rawText || '')).trim();
+
+    if (!trimmedQuery) {
+      return res.status(200).json({
+        reply: "Hello! I am Vera Assistant. I can help you check prices, compare Total Cost of Ownership (TCO), or troubleshoot barcode and QR scanning. What product or question can I help with?",
+        suggestedAction: { label: 'Explore Smart Price Finder', actionTab: 'shopping' },
+        provider: 'veracost-safety-fallback',
+        timestamp: new Date().toISOString(),
+      });
     }
 
-    const trimmedQuery = latestText.trim();
-
     // 1. Build sanitized conversation history (prior turns)
-    const priorTurns: Array<{ role: 'user' | 'assistant'; content: string }> = Array.isArray(messages)
+    priorTurns = Array.isArray(messages)
       ? messages.slice(-10).map((m: any) => ({
-          role: (m.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
-          content: String(m.content || m.text || '').trim().slice(0, 1000),
+          role: (m?.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
+          content: String(m?.content || m?.text || '').trim().slice(0, 1000),
         })).filter((m) => m.content.length > 0)
       : [];
 
@@ -79,6 +87,7 @@ supportChatRouter.post('/chat', async (req: Request, res: Response) => {
     const isAiConfigured = Boolean(nebiusKey && nebiusKey.trim() !== '' && !nebiusKey.includes('your_'));
 
     if (isAiConfigured) {
+      let timeout: any = null;
       try {
         const baseUrl = (process.env.NEBIUS_BASE_URL || 'https://api.tokenfactory.us-central1.nebius.com/v1').replace(/\/+$/, '');
         const model = process.env.NEBIUS_MODEL || 'nvidia/Llama-3.1-Nemotron-70B-Instruct-HF';
@@ -95,7 +104,7 @@ supportChatRouter.post('/chat', async (req: Request, res: Response) => {
         ];
 
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 7500);
+        timeout = setTimeout(() => controller.abort(), 7500);
 
         const aiResp = await fetch(`${baseUrl}/chat/completions`, {
           method: 'POST',
@@ -112,8 +121,6 @@ supportChatRouter.post('/chat', async (req: Request, res: Response) => {
           signal: controller.signal,
         });
 
-        clearTimeout(timeout);
-
         if (aiResp.ok) {
           const aiData = await aiResp.json();
           const replyText = aiData?.choices?.[0]?.message?.content?.trim();
@@ -128,7 +135,7 @@ supportChatRouter.post('/chat', async (req: Request, res: Response) => {
               suggestedAction = { label: 'Visit Contact & Support Page', actionTab: 'support' };
             }
 
-            return res.json({
+            return res.status(200).json({
               reply: replyText,
               provider: 'nvidia-nemotron-live',
               suggestedAction,
@@ -138,25 +145,42 @@ supportChatRouter.post('/chat', async (req: Request, res: Response) => {
         }
       } catch (aiErr: any) {
         console.warn('[VeraAssistant] AI call failed or timed out, using dynamic Conversational Engine fallback:', aiErr.message);
+      } finally {
+        if (timeout) clearTimeout(timeout);
       }
     }
 
     // 4. Dynamic, Context-Aware Conversational Reasoning Engine
     const contextualAnswer = generateContextualAssistantResponse(trimmedQuery, priorTurns, matchedProducts);
-    return res.json({
+    return res.status(200).json({
       reply: contextualAnswer.text,
       suggestedAction: contextualAnswer.suggestedAction,
       provider: isAiConfigured ? 'dynamic-reasoning-fallback' : 'veracost-conversational-engine',
       timestamp: new Date().toISOString(),
     });
   } catch (err: any) {
-    console.error('[VeraAssistant] Error handling chat message:', err);
-    res.status(500).json({
-      error: 'Support Chat Error',
-      message: err.message || 'Failed to generate response.',
-    });
+    console.error('[VeraAssistant] Error handling chat message, returning resilient response:', err?.stack || err?.message || err);
+    try {
+      const fallback = generateContextualAssistantResponse(trimmedQuery || 'help', priorTurns);
+      return res.status(200).json({
+        reply: fallback.text,
+        suggestedAction: fallback.suggestedAction,
+        provider: 'veracost-safety-fallback',
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      return res.status(200).json({
+        reply: "Hello! I am Vera Assistant. I can help you evaluate upfront prices vs. Lifetime Total Cost of Ownership (TCO), compare retailer offers, and assist with barcode and QR scanning. What product or question would you like to explore?",
+        suggestedAction: { label: 'Explore Smart Price Finder', actionTab: 'shopping' },
+        provider: 'veracost-failsafe',
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
-});
+};
+
+supportChatRouter.post('/chat', handleChatRequest);
+supportChatRouter.post('/', handleChatRequest);
 
 /**
  * Searches the verified Indian retail catalog for products mentioned in the query or conversation history
@@ -166,13 +190,13 @@ function findProductsInQueryAndContext(
   history: Array<{ role: 'user' | 'assistant'; content: string }>
 ): VerifiedCatalogProduct[] {
   const matched = new Map<string, VerifiedCatalogProduct>();
-  const lowerQuery = query.toLowerCase();
+  const lowerQuery = (query || '').toLowerCase();
 
   // 1. Direct query matching
   for (const product of VERIFIED_INDIAN_CATALOG) {
-    const nameMatch = lowerQuery.includes(product.name.toLowerCase());
-    const modelMatch = lowerQuery.includes(product.model.toLowerCase());
-    const aliasMatch = product.aliases.some((a) => lowerQuery.includes(a.toLowerCase()));
+    const nameMatch = lowerQuery.includes((product.name || '').toLowerCase());
+    const modelMatch = lowerQuery.includes((product.model || '').toLowerCase());
+    const aliasMatch = Array.isArray(product.aliases) && product.aliases.some((a) => lowerQuery.includes(String(a || '').toLowerCase()));
 
     if (nameMatch || modelMatch || aliasMatch) {
       matched.set(product.id, product);
@@ -181,13 +205,13 @@ function findProductsInQueryAndContext(
 
   // 2. Contextual history matching if query is a follow-up (e.g. "what is its price?", "how much?", "compare it")
   const isFollowUp = /it\b|this\b|that\b|price\b|cost\b|cheaper\b|discount\b|where to buy\b|specs\b|compare\b/i.test(lowerQuery);
-  if (matched.size === 0 && isFollowUp && history.length > 0) {
-    const recentHistoryText = history.slice(-4).map((h) => h.content.toLowerCase()).join(' ');
+  if (matched.size === 0 && isFollowUp && Array.isArray(history) && history.length > 0) {
+    const recentHistoryText = history.slice(-4).map((h) => String(h?.content || (h as any)?.text || '').toLowerCase()).join(' ');
     for (const product of VERIFIED_INDIAN_CATALOG) {
       if (
-        recentHistoryText.includes(product.name.toLowerCase()) ||
-        recentHistoryText.includes(product.model.toLowerCase()) ||
-        product.aliases.some((a) => recentHistoryText.includes(a.toLowerCase()))
+        recentHistoryText.includes((product.name || '').toLowerCase()) ||
+        recentHistoryText.includes((product.model || '').toLowerCase()) ||
+        (Array.isArray(product.aliases) && product.aliases.some((a) => recentHistoryText.includes(String(a || '').toLowerCase())))
       ) {
         matched.set(product.id, product);
         break;
@@ -202,12 +226,16 @@ function findProductsInQueryAndContext(
  * Formats a catalog product's real pricing into an evidence snippet for AI context
  */
 function formatProductDataForPrompt(p: VerifiedCatalogProduct): string {
-  const topOffers = p.offers.slice(0, 3).map((o) => {
-    const checkout = o.listedPrice + o.mandatoryFees + o.deliveryCharge - o.applicableDiscount;
-    return `* ${o.retailerName}: Listed ₹${o.listedPrice.toLocaleString('en-IN')}, Discount ₹${o.applicableDiscount.toLocaleString('en-IN')} (${o.discountDetails || 'Standard'}), Est. Checkout ₹${checkout.toLocaleString('en-IN')}`;
+  const topOffers = (p.offers || []).slice(0, 3).map((o) => {
+    const listed = Number(o.listedPrice) || 0;
+    const fees = Number(o.mandatoryFees) || 0;
+    const delivery = Number(o.deliveryCharge) || 0;
+    const discount = Number(o.applicableDiscount) || 0;
+    const checkout = listed + fees + delivery - discount;
+    return `* ${o.retailerName || 'Retailer'}: Listed ₹${listed.toLocaleString('en-IN')}, Discount ₹${discount.toLocaleString('en-IN')} (${o.discountDetails || 'Standard'}), Est. Checkout ₹${checkout.toLocaleString('en-IN')}`;
   }).join('\n');
 
-  return `Product: ${p.name} (${p.brand} ${p.model})\nMRP: ₹${p.mrp.toLocaleString('en-IN')}\nVerified Offers:\n${topOffers}`;
+  return `Product: ${p.name || ''} (${p.brand || ''} ${p.model || ''})\nMRP: ₹${(Number(p.mrp) || 0).toLocaleString('en-IN')}\nVerified Offers:\n${topOffers}`;
 }
 
 /**
@@ -225,29 +253,34 @@ export function generateContextualAssistantResponse(
     actionTab?: 'landing' | 'shopping' | 'workspace' | 'saved' | 'support' | 'screenshot';
   };
 } {
-  const lower = query.toLowerCase().trim();
+  const lower = (query || '').toLowerCase().trim();
   const products = matchedProducts || findProductsInQueryAndContext(query, history);
 
   // 1. Specific Product & Price Information
-  if (products.length > 0) {
+  if (Array.isArray(products) && products.length > 0) {
     if (products.length === 1) {
       const p = products[0];
-      const sortedOffers = [...p.offers].sort((a, b) => {
-        const costA = a.listedPrice + a.mandatoryFees + a.deliveryCharge - a.applicableDiscount;
-        const costB = b.listedPrice + b.mandatoryFees + b.deliveryCharge - b.applicableDiscount;
+      const offers = Array.isArray(p.offers) ? p.offers : [];
+      const sortedOffers = [...offers].sort((a, b) => {
+        const costA = (Number(a.listedPrice) || 0) + (Number(a.mandatoryFees) || 0) + (Number(a.deliveryCharge) || 0) - (Number(a.applicableDiscount) || 0);
+        const costB = (Number(b.listedPrice) || 0) + (Number(b.mandatoryFees) || 0) + (Number(b.deliveryCharge) || 0) - (Number(b.applicableDiscount) || 0);
         return costA - costB;
       });
 
       const best = sortedOffers[0];
-      const bestCheckout = best ? best.listedPrice + best.mandatoryFees + best.deliveryCharge - best.applicableDiscount : p.mrp;
+      const bestCheckout = best
+        ? (Number(best.listedPrice) || 0) + (Number(best.mandatoryFees) || 0) + (Number(best.deliveryCharge) || 0) - (Number(best.applicableDiscount) || 0)
+        : (Number(p.mrp) || 0);
 
       const offerLines = sortedOffers.slice(0, 3).map((o) => {
-        const checkout = o.listedPrice + o.mandatoryFees + o.deliveryCharge - o.applicableDiscount;
-        return `- **${o.retailerName}**: ₹${o.listedPrice.toLocaleString('en-IN')} (Checkout: ~₹${checkout.toLocaleString('en-IN')}${o.applicableDiscount > 0 ? `, saves ₹${o.applicableDiscount.toLocaleString('en-IN')}` : ''})`;
+        const listed = Number(o.listedPrice) || 0;
+        const discount = Number(o.applicableDiscount) || 0;
+        const checkout = listed + (Number(o.mandatoryFees) || 0) + (Number(o.deliveryCharge) || 0) - discount;
+        return `- **${o.retailerName || 'Retailer'}**: ₹${listed.toLocaleString('en-IN')} (Checkout: ~₹${checkout.toLocaleString('en-IN')}${discount > 0 ? `, saves ₹${discount.toLocaleString('en-IN')}` : ''})`;
       }).join('\n');
 
       return {
-        text: `Here is the verified pricing for **${p.name}** across top Indian retailers:\n\n${offerLines}\n\n🏆 **Lowest Estimated Checkout**: **${best?.retailerName || 'Amazon India'}** at **₹${bestCheckout.toLocaleString('en-IN')}**.\n\nBeyond upfront price, remember that True TCO for this product typically includes essential protection/cases, cables, and 3-year battery degradation. You can import this directly into our TCO Simulator!`,
+        text: `Here is the verified pricing for **${p.name}** across top Indian retailers:\n\n${offerLines || 'Verified listings available.'}\n\n🏆 **Lowest Estimated Checkout**: **${best?.retailerName || 'Amazon India'}** at **₹${bestCheckout.toLocaleString('en-IN')}**.\n\nBeyond upfront price, remember that True TCO for this product typically includes essential protection/cases, cables, and 3-year battery degradation. You can import this directly into our TCO Simulator!`,
         suggestedAction: { label: `View ${p.model} in Smart Finder`, actionTab: 'shopping' },
       };
     }
@@ -258,8 +291,9 @@ export function generateContextualAssistantResponse(
       const p2 = products[1];
 
       const getBestCost = (prod: VerifiedCatalogProduct) => {
-        if (!prod.offers.length) return prod.mrp;
-        const costs = prod.offers.map((o) => o.listedPrice + o.mandatoryFees + o.deliveryCharge - o.applicableDiscount);
+        const prodOffers = Array.isArray(prod.offers) ? prod.offers : [];
+        if (!prodOffers.length) return Number(prod.mrp) || 0;
+        const costs = prodOffers.map((o) => (Number(o.listedPrice) || 0) + (Number(o.mandatoryFees) || 0) + (Number(o.deliveryCharge) || 0) - (Number(o.applicableDiscount) || 0));
         return Math.min(...costs);
       };
 

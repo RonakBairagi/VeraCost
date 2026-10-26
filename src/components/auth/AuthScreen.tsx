@@ -588,29 +588,52 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
           Continue as Guest Explorer
         </button>
 
-        {/* Configuration notice if Firebase keys are empty in .env */}
-        {!firebaseReady && (
-          <div
-            style={{
-              marginTop: '18px',
-              padding: '10px 12px',
-              borderRadius: '8px',
-              backgroundColor: 'rgba(59, 130, 246, 0.08)',
-              border: '1px solid rgba(59, 130, 246, 0.2)',
-              fontSize: '11px',
-              color: '#93c5fd',
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '8px',
-              lineHeight: 1.4,
-            }}
-          >
-            <Info size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
+        {/* Firebase Connection Status */}
+        <div
+          style={{
+            marginTop: '18px',
+            padding: '10px 12px',
+            borderRadius: '8px',
+            backgroundColor: firebaseReady ? 'rgba(16, 185, 129, 0.08)' : 'rgba(59, 130, 246, 0.08)',
+            border: firebaseReady ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(59, 130, 246, 0.2)',
+            fontSize: '11px',
+            color: firebaseReady ? '#6ee7b7' : '#93c5fd',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+            lineHeight: 1.4,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {firebaseReady ? (
+              <CheckCircle2 size={14} color="#10b981" style={{ flexShrink: 0 }} />
+            ) : (
+              <Info size={14} style={{ flexShrink: 0 }} />
+            )}
             <span>
-              Firebase environment variables are not yet configured in <code>.env</code>. You can use <strong>Guest Explorer</strong> or enter test credentials to evaluate the app immediately!
+              {firebaseReady ? (
+                <>
+                  Firebase Auth: <strong style={{ color: '#ffffff' }}>veracost-5f3c5</strong>
+                </>
+              ) : (
+                'Firebase Auth: Offline / Guest Mode'
+              )}
             </span>
           </div>
-        )}
+          <span
+            style={{
+              padding: '2px 8px',
+              borderRadius: '9999px',
+              fontSize: '10px',
+              fontWeight: '600',
+              backgroundColor: firebaseReady ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+              color: firebaseReady ? '#a7f3d0' : '#cbd5e1',
+            }}
+          >
+            {firebaseReady ? 'Live Cloud' : 'Local'}
+          </span>
+        </div>
       </div>
     </div>
   );

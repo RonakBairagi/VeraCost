@@ -30,13 +30,24 @@ export interface UserProfileData {
   lastLoginAt: string;
 }
 
+export const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyDsw9ZPuiXXnJtqfGp4jEAjZvOygv93gi0',
+  authDomain: 'veracost-5f3c5.firebaseapp.com',
+  projectId: 'veracost-5f3c5',
+  storageBucket: 'veracost-5f3c5.firebasestorage.app',
+  messagingSenderId: '721160941441',
+  appId: '1:721160941441:web:8b9670e6087c32c09d0280',
+  measurementId: 'G-WTBKS0LNZE',
+};
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || FIREBASE_CONFIG.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || FIREBASE_CONFIG.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || FIREBASE_CONFIG.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || FIREBASE_CONFIG.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || FIREBASE_CONFIG.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || FIREBASE_CONFIG.appId,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || FIREBASE_CONFIG.measurementId,
 };
 
 export function isFirebaseConfigured(): boolean {

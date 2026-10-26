@@ -288,9 +288,45 @@ describe('VeraCost Upgrade — Scanner, Visual Search, Support & AI Chatbot Test
     });
 
     it('safely detects whether Firebase credentials are configured without throwing', async () => {
-      const { isFirebaseConfigured } = await import('../src/config/firebase');
-      const configured = isFirebaseConfigured();
-      expect(typeof configured).toBe('boolean');
+      const { isFirebaseConfigured, FIREBASE_CONFIG } = await import('../src/config/firebase');
+      expect(FIREBASE_CONFIG.projectId).toBe('veracost-5f3c5');
+      expect(FIREBASE_CONFIG.apiKey).toBe('AIzaSyDsw9ZPuiXXnJtqfGp4jEAjZvOygv93gi0');
+      expect(FIREBASE_CONFIG.authDomain).toBe('veracost-5f3c5.firebaseapp.com');
+      expect(FIREBASE_CONFIG.storageBucket).toBe('veracost-5f3c5.firebasestorage.app');
+      expect(FIREBASE_CONFIG.messagingSenderId).toBe('721160941441');
+      expect(FIREBASE_CONFIG.appId).toBe('1:721160941441:web:8b9670e6087c32c09d0280');
+      expect(FIREBASE_CONFIG.measurementId).toBe('G-WTBKS0LNZE');
+      expect(isFirebaseConfigured()).toBe(true);
+    });
+  });
+
+  describe('Client-Side Resilient Assistant Engine', () => {
+    it('generates immediate verified pricing without calling backend', async () => {
+      const { generateClientAssistantResponse } = await import('../src/services/assistantEngine');
+      const resp = generateClientAssistantResponse('iPhone 16 pro price in amazon');
+      expect(resp.text).toContain('iPhone 16 Pro');
+      expect(resp.text).toContain('Lowest Estimated Checkout');
+      expect(resp.suggestedAction?.actionTab).toBe('shopping');
+    });
+
+    it('answers voice queries about TCO calculations and scanning', async () => {
+      const { generateClientAssistantResponse } = await import('../src/services/assistantEngine');
+      const respTco = generateClientAssistantResponse('How does VeraCost calculate lifetime cost?');
+      expect(respTco.text).toContain('Total Cost of Ownership');
+      expect(respTco.suggestedAction?.actionTab).toBe('workspace');
+
+      const respBarcode = generateClientAssistantResponse('How to scan a barcode with camera?');
+      expect(respBarcode.text).toContain('EAN-13');
+      expect(respBarcode.suggestedAction?.actionTab).toBe('shopping');
+    });
+
+    it('provides developer contact details for support queries', async () => {
+      const { generateClientAssistantResponse } = await import('../src/services/assistantEngine');
+      const respSupport = generateClientAssistantResponse('How can I contact the developer?');
+      expect(respSupport.text).toContain('Ronak Bairagi');
+      expect(respSupport.text).toContain('+91 90519 05871');
+      expect(respSupport.text).toContain('ronakbaidya83@gmail.com');
+      expect(respSupport.suggestedAction?.actionTab).toBe('support');
     });
   });
 });

@@ -26,6 +26,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
       } catch {
         // preserve original text if not JSON
       }
+    } else if (Buffer.isBuffer(req.body)) {
+      try {
+        req.body = JSON.parse(req.body.toString('utf-8'));
+      } catch {
+        // preserve buffer
+      }
     }
   }
   next();
@@ -35,11 +41,12 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Search & Retailer Routes:
-// Mount on both '/api/search' and '/search' to handle both direct and rewritten Vercel requests
 app.use('/api/search', searchRouter);
 app.use('/search', searchRouter);
 
-// Support & Vera Assistant Chatbot Routes:
+// Support & Vera Assistant Chatbot Routes (Mounted comprehensively for all rewrite schemes):
+app.use('/api/support/chat', supportChatRouter);
+app.use('/support/chat', supportChatRouter);
 app.use('/api/support', supportChatRouter);
 app.use('/support', supportChatRouter);
 

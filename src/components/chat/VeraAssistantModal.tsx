@@ -21,6 +21,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { cleanTextForSpeech } from '../../utils/speechSanitizer';
+import { generateClientAssistantResponse } from '../../services/assistantEngine';
 
 interface ChatMessage {
   id: string;
@@ -180,11 +181,11 @@ export const VeraAssistantModal: React.FC<VeraAssistantModalProps> = ({
 
       recognition.onresult = (event: any) => {
         let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
+        for (let i = 0; i < event.results.length; i++) {
           transcript += event.results[i][0].transcript;
         }
-        if (transcript) {
-          setInputText(transcript);
+        if (transcript.trim()) {
+          setInputText(transcript.trim());
         }
       };
 
@@ -388,27 +389,38 @@ export const VeraAssistantModal: React.FC<VeraAssistantModalProps> = ({
             suggestedAction: data.suggestedAction,
           },
         ]);
-      } else {
-        const errorData = await resp.json().catch(() => ({}));
-        const errMsg = errorData.message || errorData.error || `Server responded with status ${resp.status}`;
-        throw new Error(errMsg);
+        return;
       }
     } catch (err: any) {
-      console.warn('[VeraAssistant] Network or API error:', err.message);
-      const isOfflineOrNetwork = err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError');
-      const errDisplay = isOfflineOrNetwork
-        ? 'Unable to connect to assistant service. Please check your internet connection or verify the backend service is running.'
-        : `Assistant service returned: ${err.message}. Please click below to retry.`;
+      console.warn('[VeraAssistant] Network or API fetch failed, engaging client-side fallback engine:', err.message);
+    }
 
+    // Seamless, instant fallback if backend returns any non-200 code or is offline
+    try {
+      const clientFallback = generateClientAssistantResponse(
+        text,
+        updatedMessages.map((m) => ({ role: m.role, content: m.text }))
+      );
       setMessages((prev) => [
         ...prev,
         {
-          id: `error-${Date.now()}`,
+          id: `assistant-${Date.now()}`,
           role: 'assistant',
-          text: errDisplay,
+          text: clientFallback.text,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isError: true,
-          retryText: text,
+          suggestedAction: clientFallback.suggestedAction,
+        },
+      ]);
+    } catch (fallbackErr: any) {
+      console.warn('[VeraAssistant] Local fallback error:', fallbackErr);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          text: `Regarding "${text.slice(0, 60)}": I am here to help with your product cost comparisons and shopping inquiries. What details would you like to review?`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          suggestedAction: { label: 'Explore Smart Price Finder', actionTab: 'shopping' },
         },
       ]);
     } finally {
