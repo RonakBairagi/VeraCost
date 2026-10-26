@@ -20,7 +20,7 @@ import {
   AlertCircle,
   ExternalLink
 } from 'lucide-react';
-import { cleanTextForSpeech } from '../../../server/voiceRoutes';
+import { cleanTextForSpeech } from '../../utils/speechSanitizer';
 
 interface ChatMessage {
   id: string;

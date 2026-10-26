@@ -3,53 +3,10 @@
 // Keeps all API credentials strictly on the backend.
 
 import { Router, Request, Response } from 'express';
+import { cleanTextForSpeech } from '../src/utils/speechSanitizer';
 
+export { cleanTextForSpeech };
 export const voiceRouter = Router();
-
-/**
- * Strips markdown symbols, code blocks, bullet points, and raw URLs
- * to ensure clear, natural-sounding voice synthesis.
- */
-export function cleanTextForSpeech(rawText: string): string {
-  if (!rawText || typeof rawText !== 'string') return '';
-
-  let cleaned = rawText;
-
-  // Remove code blocks
-  cleaned = cleaned.replace(/```[\s\S]*?```/g, '');
-  cleaned = cleaned.replace(/`([^`]+)`/g, '$1');
-
-  // Remove markdown links e.g. [text](url) -> text
-  cleaned = cleaned.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
-
-  // Remove raw URLs
-  cleaned = cleaned.replace(/https?:\/\/\S+/gi, '');
-
-  // Remove markdown headers, bold, italics
-  cleaned = cleaned.replace(/#{1,6}\s+/g, '');
-  cleaned = cleaned.replace(/\*\*([^*]+)\*\*/g, '$1');
-  cleaned = cleaned.replace(/\*([^*]+)\*/g, '$1');
-  cleaned = cleaned.replace(/__([^_]+)__/g, '$1');
-  cleaned = cleaned.replace(/_([^_]+)_/g, '$1');
-
-  // Clean bullet list markers and numbered lists
-  cleaned = cleaned.replace(/^\s*[-*+]\s+/gm, '');
-  cleaned = cleaned.replace(/^\s*\d+\.\s+/gm, '');
-
-  // Clean currency symbols for phonetic clarity if needed
-  cleaned = cleaned.replace(/₹\s?([0-9,]+)/g, 'Rs. $1');
-
-  // Normalize multiple spaces and newlines
-  cleaned = cleaned.replace(/\n+/g, ' ');
-  cleaned = cleaned.replace(/\s+/g, ' ').trim();
-
-  // Limit to reasonable synthesis length (e.g. 1200 characters)
-  if (cleaned.length > 1200) {
-    cleaned = cleaned.slice(0, 1200) + '...';
-  }
-
-  return cleaned;
-}
 
 // 1. Text to Speech Synthesis Endpoint
 voiceRouter.post('/tts', async (req: Request, res: Response) => {
