@@ -298,7 +298,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
               <div>
                 <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-main)' }}>
                   Barcode Read Successfully:{' '}
-                  <span style={{ fontFamily: 'monospace', color: 'var(--teal-bright)' }}>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", color: 'var(--teal-bright)' }}>
                     {decodedBarcode.rawValue}
                   </span>
                 </div>

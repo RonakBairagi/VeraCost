@@ -454,7 +454,7 @@ export const ProductQrScannerModal: React.FC<ProductQrScannerModalProps> = ({
                   style={{
                     fontSize: '0.8rem',
                     color: 'var(--text-secondary)',
-                    fontFamily: 'monospace',
+                    fontFamily: "'JetBrains Mono', monospace",
                     background: 'rgba(0, 0, 0, 0.35)',
                     padding: '0.4rem 0.6rem',
                     borderRadius: 'var(--radius-sm)',

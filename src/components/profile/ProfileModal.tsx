@@ -129,12 +129,19 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         updates.photoURL = photoPreview || undefined;
       }
 
-      const updated = await updateUserProfileData(userProfile.uid, updates);
+      const savePromise = updateUserProfileData(userProfile.uid, updates);
+      const updated = await Promise.race([
+        savePromise,
+        new Promise<UserProfileData>((_, reject) =>
+          setTimeout(() => reject(new Error('Save request timed out. Please check your connection.')), 6000)
+        ),
+      ]);
+
       onProfileUpdated(updated);
       setSuccessMessage('Profile details updated successfully!');
       setTimeout(() => {
         onClose();
-      }, 1200);
+      }, 1000);
     } catch (err: any) {
       console.error('[Profile Update Error]', err);
       setErrorMessage(err.message || 'Failed to update profile. Please try again.');
@@ -558,7 +565,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 <div 
                   style={{ 
                     fontSize: '12px', 
-                    fontFamily: 'monospace', 
+                    fontFamily: "'JetBrains Mono', monospace", 
                     color: '#e2e8f0', 
                     marginTop: '4px',
                     overflow: 'hidden',

@@ -90,7 +90,7 @@ export class RootErrorBoundary extends Component<Props, State> {
                 textAlign: 'left',
                 overflowX: 'auto',
                 marginBottom: '24px',
-                fontFamily: 'monospace',
+                fontFamily: "'JetBrains Mono', monospace",
                 border: '1px solid rgba(239, 68, 68, 0.15)',
               }}>
                 {this.state.error.message || 'Unknown error'}

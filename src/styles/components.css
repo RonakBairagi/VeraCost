@@ -1159,7 +1159,7 @@
 .float-hud-crosshair-1 {
   top: 24%;
   left: 28%;
-  font-family: monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 1.1rem;
   color: var(--teal-bright);
   opacity: 0.35;
@@ -1169,7 +1169,7 @@
 .float-hud-crosshair-2 {
   top: 72%;
   left: 45%;
-  font-family: monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 1.1rem;
   color: var(--cyan-bright);
   opacity: 0.3;
@@ -1179,7 +1179,7 @@
 .float-hud-crosshair-3 {
   top: 35%;
   right: 12%;
-  font-family: monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 1.1rem;
   color: var(--indigo-accent);
   opacity: 0.35;

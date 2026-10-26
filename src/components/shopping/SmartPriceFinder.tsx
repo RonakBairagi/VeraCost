@@ -46,6 +46,7 @@ import { RetailerStatusModal } from './RetailerStatusModal';
 import { performClientCatalogSearch } from '../../utils/clientCatalogSearch';
 import { inferProductCategory } from '../../engine/discovery';
 import { cleanRetailerSearchQuery } from '../../../server/retailers/baseAdapter';
+import { convertCurrency, formatCurrency } from '../../services/currencyConverter';
 
 interface SmartPriceFinderProps {
   onImportToCalculator: (option: Partial<ComparisonOption>) => void;
@@ -62,8 +63,12 @@ const POPULAR_SEARCH_PRESETS = [
 
 export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
   onImportToCalculator,
-  currentCurrency,
+  currentCurrency = 'INR',
 }) => {
+  const formatPrice = (inrAmount: number) => {
+    const converted = convertCurrency(inrAmount, 'INR', currentCurrency || 'INR');
+    return formatCurrency(converted, currentCurrency || 'INR');
+  };
   // Search & Products Session State
   const [searchInput, setSearchInput] = useState('Apple iPhone 16 Pro 128GB');
   const [products, setProducts] = useState<SearchedProduct[]>([]);
@@ -583,8 +588,8 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                       {prod.brand} • {prod.variant || prod.model}
                     </div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--teal-bright)', marginTop: '0.2rem' }}>
-                      {prod.priceRange.min > 0 ? `From ₹${prod.priceRange.min.toLocaleString('en-IN')}` : 'Check search links'}
+                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--teal-bright)', marginTop: '0.2rem', fontVariantNumeric: 'tabular-nums' }}>
+                      {prod.priceRange.min > 0 ? `From ${formatPrice(prod.priceRange.min)}` : 'Check search links'}
                     </div>
                   </div>
 
@@ -663,10 +668,10 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
               {/* Price & Action */}
               <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  Listed Price: ₹{currentProduct.bestOffer.listedPrice.toLocaleString('en-IN')}
+                  Listed Price: {formatPrice(currentProduct.bestOffer.listedPrice)}
                 </div>
-                <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--teal-bright)', lineHeight: 1 }}>
-                  ₹{currentProduct.bestOffer.estimatedCheckoutCost.toLocaleString('en-IN')}
+                <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--teal-bright)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                  {formatPrice(currentProduct.bestOffer.estimatedCheckoutCost)}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                   Estimated Final Checkout Cost (incl. delivery & verified discounts)
@@ -694,9 +699,9 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
                       onImportToCalculator({
                         name: currentProduct.name,
                         brandOrModel: currentProduct.brand,
-                        initialPurchasePrice: currentProduct.bestOffer?.estimatedCheckoutCost || 0,
+                        initialPurchasePrice: convertCurrency(currentProduct.bestOffer?.estimatedCheckoutCost || 0, 'INR', currentCurrency || 'INR'),
                         category: effCategory,
-                        currency: 'INR',
+                        currency: currentCurrency || 'INR',
                       });
                     }}
                     style={{ padding: '0.55rem 1.25rem', fontSize: '0.85rem' }}
@@ -847,22 +852,22 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>
                             <span>Listed Price:</span>
-                            <span style={{ fontFamily: 'monospace' }}>₹{listing.listedPrice.toLocaleString('en-IN')}</span>
+                            <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{formatPrice(listing.listedPrice)}</span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>
                             <span>Delivery / Shipping:</span>
-                            <span style={{ fontFamily: 'monospace' }}>{listing.deliveryCharge === 0 ? 'FREE' : `+₹${listing.deliveryCharge}`}</span>
+                            <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{listing.deliveryCharge === 0 ? 'FREE' : `+${formatPrice(listing.deliveryCharge)}`}</span>
                           </div>
                           {listing.mandatoryFees > 0 && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>
                               <span>Packaging / Handling Fee:</span>
-                              <span style={{ fontFamily: 'monospace' }}>+₹{listing.mandatoryFees}</span>
+                              <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>+{formatPrice(listing.mandatoryFees)}</span>
                             </div>
                           )}
                           {listing.applicableDiscount > 0 && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--emerald-success)', marginBottom: '0.2rem' }}>
                               <span>Bank Discount / Rebate:</span>
-                              <span style={{ fontFamily: 'monospace' }}>-₹{listing.applicableDiscount.toLocaleString('en-IN')}</span>
+                              <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>-{formatPrice(listing.applicableDiscount)}</span>
                             </div>
                           )}
 
@@ -879,8 +884,8 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
                             }}
                           >
                             <span>Estimated Checkout:</span>
-                            <span style={{ color: 'var(--teal-bright)', fontFamily: 'monospace' }}>
-                              ₹{listing.estimatedCheckoutCost.toLocaleString('en-IN')}
+                            <span style={{ color: 'var(--teal-bright)', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
+                              {formatPrice(listing.estimatedCheckoutCost)}
                             </span>
                           </div>
                         </div>
@@ -993,11 +998,11 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{prod.brand} • {prod.variant || prod.model}</div>
                             </div>
                           </td>
-                          <td style={{ padding: '0.75rem', fontFamily: 'monospace', fontWeight: 600 }}>
-                            {best ? `₹${best.listedPrice.toLocaleString('en-IN')}` : 'Unavailable'}
+                          <td style={{ padding: '0.75rem', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                            {best ? formatPrice(best.listedPrice) : 'Unavailable'}
                           </td>
-                          <td style={{ padding: '0.75rem', fontFamily: 'monospace', fontWeight: 700, color: 'var(--teal-bright)' }}>
-                            {best ? `₹${best.estimatedCheckoutCost.toLocaleString('en-IN')}` : 'Check search links'}
+                          <td style={{ padding: '0.75rem', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: 'var(--teal-bright)' }}>
+                            {best ? formatPrice(best.estimatedCheckoutCost) : 'Check search links'}
                           </td>
                           <td style={{ padding: '0.75rem', fontWeight: 600 }}>
                             {best ? best.retailerName : 'Official Search Gateway'}
@@ -1013,9 +1018,9 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
                                 onImportToCalculator({
                                   name: prod.name,
                                   brandOrModel: prod.brand,
-                                  initialPurchasePrice: best?.estimatedCheckoutCost || 0,
+                                  initialPurchasePrice: best ? convertCurrency(best.estimatedCheckoutCost, 'INR', currentCurrency || 'INR') : 0,
                                   category: prod.category as ProductCategory,
-                                  currency: 'INR',
+                                  currency: currentCurrency || 'INR',
                                 });
                               }}
                               style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem' }}
@@ -1060,8 +1065,8 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
                     <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)', marginBottom: '0.2rem' }}>
                       {alt.name}
                     </div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--teal-bright)', marginBottom: '0.4rem' }}>
-                      Approx. ₹{alt.priceEstimate.toLocaleString('en-IN')}
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--teal-bright)', marginBottom: '0.4rem', fontVariantNumeric: 'tabular-nums' }}>
+                      Approx. {formatPrice(alt.priceEstimate)}
                     </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '0.75rem' }}>
                       {alt.reason}
@@ -1134,6 +1139,7 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
           onClose={() => setIsPriceHistoryOpen(false)}
           productName={currentProduct.name}
           history={currentProduct.priceHistory || []}
+          currency={currentCurrency}
         />
       )}
 
@@ -1143,8 +1149,8 @@ export const SmartPriceFinder: React.FC<SmartPriceFinderProps> = ({
           onClose={() => setIsPriceAlertOpen(false)}
           productId={currentProduct.id}
           productName={currentProduct.name}
-          currentLowest={currentProduct.bestOffer.estimatedCheckoutCost}
-          currency="INR"
+          currentLowest={convertCurrency(currentProduct.bestOffer.estimatedCheckoutCost, 'INR', currentCurrency || 'INR')}
+          currency={currentCurrency || 'INR'}
           retailer={currentProduct.bestOffer.retailerName}
           onAlertCreated={handleSaveAlert}
         />

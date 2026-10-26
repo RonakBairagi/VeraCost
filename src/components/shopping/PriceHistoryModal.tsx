@@ -1,12 +1,14 @@
 import React from 'react';
 import { X, TrendingDown, Calendar, AlertCircle } from 'lucide-react';
 import { PriceHistoryPoint } from '../../types/shopping';
+import { convertCurrency, formatCurrency } from '../../services/currencyConverter';
 
 interface PriceHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   productName: string;
   history: PriceHistoryPoint[];
+  currency?: string;
 }
 
 export const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
@@ -14,8 +16,15 @@ export const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
   onClose,
   productName,
   history,
+  currency = 'INR',
 }) => {
   if (!isOpen) return null;
+
+  const formatPoint = (val: number) => {
+    const code = currency || 'INR';
+    const converted = convertCurrency(val, 'INR', code);
+    return formatCurrency(converted, code);
+  };
 
   const hasData = history && history.length > 0;
 
@@ -141,9 +150,9 @@ export const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                         fill="var(--text-muted)"
                         fontSize="10"
                         textAnchor="end"
-                        fontFamily="monospace"
+                        fontFamily="'Inter', -apple-system, sans-serif"
                       >
-                        ₹{Math.round(val).toLocaleString('en-IN')}
+                        {formatPoint(val)}
                       </text>
                     </g>
                   );
@@ -176,7 +185,7 @@ export const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                       fill="var(--text-muted)"
                       fontSize="9"
                       textAnchor="middle"
-                      fontFamily="monospace"
+                      fontFamily="'Inter', -apple-system, sans-serif"
                     >
                       {h.date.slice(5)}
                     </text>
@@ -204,8 +213,8 @@ export const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                     <Calendar size={13} />
                     {h.date} • {h.retailerName}
                   </span>
-                  <span style={{ fontWeight: 700, color: 'var(--text-main)', fontFamily: 'monospace' }}>
-                    ₹{h.price.toLocaleString('en-IN')}
+                  <span style={{ fontWeight: 700, color: 'var(--text-main)', fontVariantNumeric: 'tabular-nums' }}>
+                    {formatPoint(h.price)}
                   </span>
                 </div>
               ))}

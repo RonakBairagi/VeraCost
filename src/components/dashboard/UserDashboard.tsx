@@ -22,6 +22,7 @@ import { ComparisonProject, ComparisonOption, ComparisonAnalysisResult } from '.
 import { UserProfileData } from '../../config/firebase';
 import { SAMPLE_COMPARISONS } from '../../data/sampleComparisons';
 import { calculateComparison } from '../../engine/calculator';
+import { getCurrencySymbol, formatCurrency } from '../../services/currencyConverter';
 
 interface UserDashboardProps {
   userProfile: UserProfileData;
@@ -86,15 +87,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   const optionsCount = project.options?.length || 0;
 
   // Currency symbol
-  const getSymbol = (c: string) => {
-    switch (c) {
-      case 'INR': return '₹';
-      case 'EUR': return '€';
-      case 'GBP': return '£';
-      default: return '$';
-    }
-  };
-  const sym = getSymbol(currency);
+  const sym = getCurrencySymbol(currency);
 
   return (
     <div className="container" style={{ padding: '2rem 1rem 4rem', maxWidth: '1200px', margin: '0 auto' }}>
@@ -248,9 +241,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               ? project.options[0].name
               : 'No Options Yet'}
           </div>
-          <div style={{ fontSize: '12px', color: '#10b981', marginTop: '6px' }}>
+          <div style={{ fontSize: '12px', color: '#10b981', marginTop: '6px', fontVariantNumeric: 'tabular-nums' }}>
             {analysis && analysis.lowestCostOptionId && analysis.results[analysis.lowestCostOptionId]
-              ? `Lowest Net TCO: ${sym}${Math.round(analysis.results[analysis.lowestCostOptionId].netTotalCost).toLocaleString()}`
+              ? `Lowest Net TCO: ${formatCurrency(Math.round(analysis.results[analysis.lowestCostOptionId].netTotalCost), currency)}`
               : 'Add options to compare'}
           </div>
         </div>
@@ -397,15 +390,15 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '20px', textAlign: 'right' }}>
                       <div>
                         <div style={{ fontSize: '11px', color: '#94a3b8' }}>Upfront Listed</div>
-                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#e2e8f0' }}>
-                          {sym}{upfront.toLocaleString()}
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#e2e8f0', fontVariantNumeric: 'tabular-nums' }}>
+                          {formatCurrency(upfront, currency)}
                         </div>
                       </div>
 
                       <div style={{ minWidth: '90px' }}>
                         <div style={{ fontSize: '11px', color: '#38bdf8', fontWeight: '600' }}>3-Year TCO</div>
-                        <div style={{ fontSize: '16px', fontWeight: '800', color: isBest ? '#34d399' : '#ffffff' }}>
-                          {sym}{totalCost.toLocaleString()}
+                        <div style={{ fontSize: '16px', fontWeight: '800', color: isBest ? '#34d399' : '#ffffff', fontVariantNumeric: 'tabular-nums' }}>
+                          {formatCurrency(totalCost, currency)}
                         </div>
                       </div>
                     </div>

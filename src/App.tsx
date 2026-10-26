@@ -23,9 +23,11 @@ import { Bot } from 'lucide-react';
 import { calculateComparison } from './engine/calculator';
 import { getSuggestionsForCategory, createCostItemFromSuggestion, inferProductCategory } from './engine/discovery';
 import { SUPPORT_CONFIG } from './config/support';
+import { convertProjectCurrency, convertCurrency } from './services/currencyConverter';
 
 export const App: React.FC = () => {
   const [isInitializing, setIsInitializing] = useState(true);
+  const startupMountedAt = React.useRef(Date.now());
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
   const [isGuest, setIsGuest] = useState<boolean>(() => {
@@ -66,19 +68,31 @@ export const App: React.FC = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
+  const [currency, setCurrency] = useState<string>(() => {
+    try {
+      const stored = localStorage.getItem('veracost_selected_currency');
+      if (stored) return stored;
+    } catch {}
+    return 'INR';
+  });
+
   const [project, setProject] = useState<ComparisonProject>(() => {
+    let base = SAMPLE_COMPARISONS[0];
     try {
       const stored = localStorage.getItem('veracost_active_project');
       if (stored) {
-        return JSON.parse(stored);
+        base = JSON.parse(stored);
       }
     } catch (e) {
       console.error(e);
     }
-    return SAMPLE_COMPARISONS[0];
+    const targetCurrency = (typeof localStorage !== 'undefined' ? localStorage.getItem('veracost_selected_currency') : null) || base.currency || 'INR';
+    if (base.currency !== targetCurrency) {
+      return convertProjectCurrency(base, targetCurrency);
+    }
+    return base;
   });
 
-  const [currency, setCurrency] = useState<string>(project.currency || 'USD');
   const [isAiLive, setIsAiLive] = useState<boolean>(false);
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -106,9 +120,23 @@ export const App: React.FC = () => {
     checkServerConfig();
   }, []);
 
-  // Firebase Authentication State Listener
+  // Firebase Authentication State Listener with 3.5s minimum startup duration
   useEffect(() => {
     let timer: any = null;
+    let safetyTimer: any = null;
+
+    const completeStartup = () => {
+      const elapsed = Date.now() - startupMountedAt.current;
+      const remaining = Math.max(0, 3500 - elapsed);
+      timer = setTimeout(() => {
+        setIsInitializing(false);
+      }, remaining);
+    };
+
+    // Safety failsafe: never let initialization hang indefinitely
+    safetyTimer = setTimeout(() => {
+      setIsInitializing(false);
+    }, 6000);
 
     if (auth && isFirebaseConfigured()) {
       const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -138,12 +166,13 @@ export const App: React.FC = () => {
             setUserProfile(null);
           }
         }
-        timer = setTimeout(() => setIsInitializing(false), 500);
+        completeStartup();
       });
 
       return () => {
         unsubscribe();
         if (timer) clearTimeout(timer);
+        if (safetyTimer) clearTimeout(safetyTimer);
       };
     } else {
       const savedGuest = sessionStorage.getItem('veracost_guest_session') === 'true';
@@ -157,9 +186,10 @@ export const App: React.FC = () => {
           lastLoginAt: new Date().toISOString(),
         });
       }
-      timer = setTimeout(() => setIsInitializing(false), 500);
+      completeStartup();
       return () => {
         if (timer) clearTimeout(timer);
+        if (safetyTimer) clearTimeout(safetyTimer);
       };
     }
   }, []);
@@ -203,14 +233,14 @@ export const App: React.FC = () => {
     try { localStorage.removeItem('veracost_current_user'); } catch {}
   };
 
-  // Sync currency changes into project
+  // Sync currency changes into project with mathematical conversion and persistence
   const handleCurrencyChange = (newCurrency: string) => {
-    setCurrency(newCurrency);
-    setProject((prev) => ({
-      ...prev,
-      currency: newCurrency,
-      options: prev.options.map((opt) => ({ ...opt, currency: newCurrency })),
-    }));
+    const target = (newCurrency || 'INR').toUpperCase();
+    setCurrency(target);
+    try {
+      localStorage.setItem('veracost_selected_currency', target);
+    } catch {}
+    setProject((prev) => convertProjectCurrency(prev, target));
   };
 
   // Auto-save active project to localStorage
@@ -222,10 +252,11 @@ export const App: React.FC = () => {
     }
   }, [project]);
 
-  // Load sample from landing page
+  // Load sample from landing page, converted to active currency
   const handleSelectSample = (sample: ComparisonProject) => {
-    setProject(sample);
-    setCurrency(sample.currency);
+    const targetCurrency = currency || 'INR';
+    const converted = convertProjectCurrency(sample, targetCurrency);
+    setProject(converted);
     setCurrentTab('workspace');
   };
 
@@ -247,12 +278,16 @@ export const App: React.FC = () => {
     const maintenanceCosts: CostItem[] = maintenanceSuggestions.map(createCostItemFromSuggestion);
     const operatingCosts: CostItem[] = operatingSuggestions.map(createCostItemFromSuggestion);
 
-    const upfront = optionPartial.initialPurchasePrice || 10000;
+    const sourceCurrency = optionPartial.currency || 'INR';
+    const rawUpfront = optionPartial.initialPurchasePrice || 10000;
+    // Mathematically convert to currently selected active currency if needed
+    const upfront = sourceCurrency !== currency ? convertCurrency(rawUpfront, sourceCurrency, currency) : rawUpfront;
+
     const newOption: ComparisonOption = {
       id: `opt-${Date.now()}`,
       name: optionPartial.name || 'Verified Deal Option',
       category,
-      currency: optionPartial.currency || currency,
+      currency: currency,
       brandOrModel: optionPartial.brandOrModel || '',
       initialPurchasePrice: upfront,
       salesTaxOrFees: 0,

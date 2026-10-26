@@ -20,6 +20,13 @@ import {
   getDoc,
   Firestore,
 } from 'firebase/firestore';
+import {
+  getStorage,
+  ref as storageRef,
+  uploadString,
+  getDownloadURL,
+  FirebaseStorage,
+} from 'firebase/storage';
 
 export interface UserProfileData {
   uid: string;
@@ -65,18 +72,33 @@ export function isFirebaseConfigured(): boolean {
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let db: Firestore | null = null;
+let storage: FirebaseStorage | null = null;
 
 if (isFirebaseConfigured()) {
   try {
     app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
+    if (firebaseConfig.storageBucket) {
+      try {
+        storage = getStorage(app);
+      } catch (stErr) {
+        console.warn('[Firebase Storage] Init warning:', stErr);
+      }
+    }
   } catch (err) {
     console.warn('[Firebase] Initialization warning:', err);
   }
 }
 
-export { auth, db };
+export { auth, db, storage };
+
+export function withTimeout<T>(promise: Promise<T>, ms = 2500, fallbackVal?: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallbackVal as T), ms)),
+  ]);
+}
 
 interface LocalAccountRecord {
   uid: string;
@@ -376,44 +398,70 @@ export async function updateUserProfileData(
     } catch {}
   }
 
-  // 2. Merge updates
+  // 2. Handle profile picture upload to Firebase Storage if provided as a data URL
+  let resolvedPhotoURL = updates.photoURL !== undefined ? updates.photoURL : currentProfile.photoURL;
+
+  if (updates.photoURL && updates.photoURL.startsWith('data:image/') && storage && uid) {
+    try {
+      const fileRef = storageRef(storage, `users/${uid}/profile_${Date.now()}.webp`);
+      const uploadTask = uploadString(fileRef, updates.photoURL, 'data_url');
+      await withTimeout(uploadTask, 3500);
+      const downloadUrl = await withTimeout(getDownloadURL(fileRef), 2000);
+      if (downloadUrl) {
+        resolvedPhotoURL = downloadUrl;
+      }
+    } catch (stErr) {
+      console.warn('[Firebase Storage] Cloud upload optional fallback to data URL:', stErr);
+      // Even if Storage is not enabled or restricted, the compressed data URL is kept for Firestore & localStorage
+    }
+  }
+
+  // 3. Merge updates
   const updatedProfile: UserProfileData = {
     ...currentProfile,
     displayName: updates.displayName !== undefined ? updates.displayName.trim() : currentProfile.displayName,
     phoneNumber: updates.phoneNumber !== undefined ? updates.phoneNumber.trim() || undefined : currentProfile.phoneNumber,
-    photoURL: updates.photoURL !== undefined ? updates.photoURL : currentProfile.photoURL,
+    photoURL: resolvedPhotoURL,
   };
 
-  // 3. Update Firebase Auth user if active
+  // 4. Update Firebase Auth user if active
   if (auth && auth.currentUser) {
     try {
-      await updateProfile(auth.currentUser, {
-        displayName: updatedProfile.displayName,
-        photoURL: updatedProfile.photoURL || null,
-      });
+      // Firebase Auth updateProfile only accepts valid http/https URLs or null for photoURL (max length 2048 chars)
+      const authPhoto = resolvedPhotoURL && resolvedPhotoURL.startsWith('http') ? resolvedPhotoURL : null;
+      await withTimeout(
+        updateProfile(auth.currentUser, {
+          displayName: updatedProfile.displayName,
+          photoURL: authPhoto,
+        }),
+        2500
+      );
     } catch (authErr) {
       console.warn('[Firebase] Auth profile update optional sync:', authErr);
     }
   }
 
-  // 4. Update Firestore if database is configured
+  // 5. Update Firestore if database is configured
   if (db && uid) {
     try {
       const userRef = doc(db, 'users', uid);
-      await setDoc(userRef, {
-        displayName: updatedProfile.displayName,
-        phoneNumber: updatedProfile.phoneNumber || null,
-        photoURL: updatedProfile.photoURL || null,
-        updatedAt: new Date().toISOString(),
-      }, { merge: true });
+      await withTimeout(
+        setDoc(userRef, {
+          displayName: updatedProfile.displayName,
+          phoneNumber: updatedProfile.phoneNumber || null,
+          photoURL: updatedProfile.photoURL || null,
+          updatedAt: new Date().toISOString(),
+        }, { merge: true }),
+        2500
+      );
     } catch (dbErr) {
       console.warn('[Firebase] Firestore profile update optional sync:', dbErr);
     }
   }
 
-  // 5. Update local accounts store if running in resilient mode
+  // 6. Update local accounts store if running in resilient mode
   const accounts = getLocalAccounts();
-  const accIndex = accounts.findIndex((a) => a.uid === uid || a.email.toLowerCase() === updatedProfile.email.toLowerCase());
+  const accIndex = accounts.findIndex((a) => a.uid === uid || (updatedProfile.email && a.email.toLowerCase() === updatedProfile.email.toLowerCase()));
   if (accIndex >= 0) {
     accounts[accIndex].displayName = updatedProfile.displayName;
     accounts[accIndex].phoneNumber = updatedProfile.phoneNumber;
@@ -421,7 +469,7 @@ export async function updateUserProfileData(
     saveLocalAccounts(accounts);
   }
 
-  // 6. Update current user in localStorage for instant reactive display
+  // 7. Update current user in localStorage for instant reactive display
   if (typeof localStorage !== 'undefined') {
     try {
       localStorage.setItem('veracost_current_user', JSON.stringify(updatedProfile));

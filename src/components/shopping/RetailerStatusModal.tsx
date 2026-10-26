@@ -175,7 +175,7 @@ export const RetailerStatusModal: React.FC<RetailerStatusModalProps> = ({ isOpen
                 {s.requiredEnvVar && (
                   <span
                     style={{
-                      fontFamily: 'monospace',
+                      fontFamily: "'JetBrains Mono', monospace",
                       fontSize: '0.7rem',
                       background: 'var(--bg-elevated)',
                       padding: '0.2rem 0.5rem',

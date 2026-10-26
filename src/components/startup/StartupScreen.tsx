@@ -19,7 +19,7 @@ export const StartupScreen: React.FC<StartupScreenProps> = ({ statusMessage }) =
   useEffect(() => {
     const interval = setInterval(() => {
       setPhaseIndex((prev) => (prev < PHASES.length - 1 ? prev + 1 : prev));
-    }, 600);
+    }, 780);
     return () => clearInterval(interval);
   }, []);
 
