@@ -129,13 +129,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         updates.photoURL = photoPreview || undefined;
       }
 
-      const savePromise = updateUserProfileData(userProfile.uid, updates);
-      const updated = await Promise.race([
-        savePromise,
-        new Promise<UserProfileData>((_, reject) =>
-          setTimeout(() => reject(new Error('Save request timed out. Please check your connection.')), 6000)
-        ),
-      ]);
+      const updated = await updateUserProfileData(userProfile.uid, updates);
 
       onProfileUpdated(updated);
       setSuccessMessage('Profile details updated successfully!');
@@ -224,7 +218,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               <UserIcon size={18} />
             </div>
             <div>
-              <h2 id="profile-modal-title" style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: '#ffffff' }}>
+              <h2 id="profile-modal-title" style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: 'var(--text-main, #ffffff)' }}>
                 Account Profile
               </h2>
               <p style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)', margin: 0 }}>
@@ -305,7 +299,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               alignItems: 'center',
               gap: '20px',
               padding: '16px',
-              backgroundColor: 'rgba(255, 255, 255, 0.03)',
+              backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.03))',
               borderRadius: '14px',
               border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
               marginBottom: '20px',
@@ -341,7 +335,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             </div>
 
             <div style={{ flex: 1 }}>
-              <h3 style={{ fontSize: '14px', fontWeight: '600', margin: '0 0 4px 0', color: '#ffffff' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: '600', margin: '0 0 4px 0', color: 'var(--text-main, #ffffff)' }}>
                 Profile Picture
               </h3>
               <p style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)', margin: '0 0 10px 0' }}>
@@ -409,12 +403,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             <div>
               <label 
                 htmlFor="profile-name-input"
-                style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}
+                style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-main, #cbd5e1)', marginBottom: '6px' }}
               >
                 Full Name / Display Name
               </label>
               <div style={{ position: 'relative' }}>
-                <UserIcon size={16} color="#64748b" style={{ position: 'absolute', left: '12px', top: '13px' }} />
+                <UserIcon size={16} color="var(--text-muted, #64748b)" style={{ position: 'absolute', left: '12px', top: '13px' }} />
                 <input
                   id="profile-name-input"
                   type="text"
@@ -426,10 +420,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     width: '100%',
                     boxSizing: 'border-box',
                     padding: '10px 12px 10px 38px',
-                    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-                    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.15))',
+                    backgroundColor: 'var(--bg-input, rgba(15, 23, 42, 0.65))',
+                    border: '1px solid var(--border-medium, rgba(255, 255, 255, 0.15))',
                     borderRadius: '10px',
-                    color: '#ffffff',
+                    color: 'var(--text-main, #ffffff)',
                     fontSize: '14px',
                     outline: 'none',
                   }}
@@ -440,7 +434,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             {/* Email (Read-only) */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: '600', color: '#cbd5e1' }}>
+                <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-main, #cbd5e1)' }}>
                   Registered Email Address
                 </label>
                 <span
@@ -456,7 +450,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 </span>
               </div>
               <div style={{ position: 'relative' }}>
-                <Mail size={16} color="#64748b" style={{ position: 'absolute', left: '12px', top: '13px' }} />
+                <Mail size={16} color="var(--text-muted, #64748b)" style={{ position: 'absolute', left: '12px', top: '13px' }} />
                 <input
                   type="email"
                   value={userProfile.email}
@@ -466,10 +460,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     width: '100%',
                     boxSizing: 'border-box',
                     padding: '10px 12px 10px 38px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.04))',
+                    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
                     borderRadius: '10px',
-                    color: '#94a3b8',
+                    color: 'var(--text-muted, #94a3b8)',
                     fontSize: '14px',
                     cursor: 'not-allowed',
                   }}
@@ -481,12 +475,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             <div>
               <label 
                 htmlFor="profile-phone-input"
-                style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}
+                style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-main, #cbd5e1)', marginBottom: '6px' }}
               >
-                Phone Number <span style={{ color: '#64748b', fontWeight: 'normal' }}>(Optional)</span>
+                Phone Number <span style={{ color: 'var(--text-muted, #64748b)', fontWeight: 'normal' }}>(Optional)</span>
               </label>
               <div style={{ position: 'relative' }}>
-                <Phone size={16} color="#64748b" style={{ position: 'absolute', left: '12px', top: '13px' }} />
+                <Phone size={16} color="var(--text-muted, #64748b)" style={{ position: 'absolute', left: '12px', top: '13px' }} />
                 <input
                   id="profile-phone-input"
                   type="tel"
@@ -497,10 +491,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     width: '100%',
                     boxSizing: 'border-box',
                     padding: '10px 12px 10px 38px',
-                    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-                    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.15))',
+                    backgroundColor: 'var(--bg-input, rgba(15, 23, 42, 0.65))',
+                    border: '1px solid var(--border-medium, rgba(255, 255, 255, 0.15))',
                     borderRadius: '10px',
-                    color: '#ffffff',
+                    color: 'var(--text-main, #ffffff)',
                     fontSize: '14px',
                     outline: 'none',
                   }}
@@ -520,16 +514,16 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               <div
                 style={{
                   padding: '10px 12px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.02))',
+                  border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
                   borderRadius: '10px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#94a3b8' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-muted, #94a3b8)' }}>
                   <Calendar size={13} />
                   <span>Member Since</span>
                 </div>
-                <div style={{ fontSize: '13px', fontWeight: '600', color: '#e2e8f0', marginTop: '4px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-main, #e2e8f0)', marginTop: '4px' }}>
                   {memberSince}
                 </div>
               </div>
@@ -537,12 +531,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               <div
                 style={{
                   padding: '10px 12px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.02))',
+                  border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
                   borderRadius: '10px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted, #94a3b8)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Lock size={13} />
                     <span>User ID</span>
@@ -554,7 +548,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: copiedUid ? '#10b981' : '#94a3b8',
+                      color: copiedUid ? '#10b981' : 'var(--text-muted, #94a3b8)',
                       cursor: 'pointer',
                       padding: 0,
                     }}
@@ -566,7 +560,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   style={{ 
                     fontSize: '12px', 
                     fontFamily: "'JetBrains Mono', monospace", 
-                    color: '#e2e8f0', 
+                    color: 'var(--text-main, #e2e8f0)', 
                     marginTop: '4px',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -600,7 +594,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   borderRadius: '10px',
                   backgroundColor: 'transparent',
                   border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.15))',
-                  color: 'var(--text-muted, #cbd5e1)',
+                  color: 'var(--text-secondary, #cbd5e1)',
                   fontSize: '13px',
                   fontWeight: '500',
                   cursor: isSaving ? 'not-allowed' : 'pointer',

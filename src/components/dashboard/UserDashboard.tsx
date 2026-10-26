@@ -94,12 +94,12 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
       {/* Welcome Banner */}
       <div
         style={{
-          background: 'linear-gradient(135deg, rgba(30, 58, 138, 0.3) 0%, rgba(15, 23, 42, 0.8) 100%)',
+          background: 'var(--dashboard-banner-bg, linear-gradient(135deg, rgba(30, 58, 138, 0.3) 0%, rgba(15, 23, 42, 0.8) 100%))',
           border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
           borderRadius: '20px',
           padding: '28px 32px',
           marginBottom: '28px',
-          boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.5)',
+          boxShadow: 'var(--shadow-md, 0 20px 40px -15px rgba(0, 0, 0, 0.5))',
           position: 'relative',
           overflow: 'hidden',
         }}
@@ -127,7 +127,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                 padding: '3px 10px',
                 borderRadius: '9999px',
                 backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                color: '#93c5fd',
+                color: '#3b82f6',
                 border: '1px solid rgba(59, 130, 246, 0.3)',
               }}
             >
@@ -141,7 +141,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               fontSize: '28px',
               fontWeight: '800',
               margin: '0 0 8px 0',
-              color: '#ffffff',
+              color: 'var(--text-main, #ffffff)',
               fontFamily: 'Outfit, Inter, sans-serif',
               letterSpacing: '-0.4px',
             }}
@@ -149,7 +149,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             Welcome back, {displayName}
           </h1>
 
-          <p style={{ fontSize: '14px', color: '#cbd5e1', maxWidth: '680px', margin: '0 0 20px 0', lineHeight: 1.5 }}>
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary, #cbd5e1)', maxWidth: '680px', margin: '0 0 20px 0', lineHeight: 1.5 }}>
             Here is your active purchasing intelligence overview. Track true multi-year ownership costs, monitor retailer deals, and make data-driven buying choices.
           </p>
 
@@ -202,7 +202,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
             borderRadius: '16px',
             padding: '20px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
+            boxShadow: 'var(--shadow-sm, 0 4px 20px rgba(0, 0, 0, 0.25))',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -211,11 +211,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               <Layers size={16} />
             </div>
           </div>
-          <div style={{ fontSize: '26px', fontWeight: '800', color: '#ffffff' }}>
-            {optionsCount} <span style={{ fontSize: '14px', fontWeight: '500', color: '#94a3b8' }}>products compared</span>
+          <div style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-main, #ffffff)' }}>
+            {optionsCount} <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-muted, #94a3b8)' }}>products compared</span>
           </div>
-          <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '6px' }}>
-            Project: <strong style={{ color: '#e2e8f0' }}>{project.title}</strong>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)', marginTop: '6px' }}>
+            Project: <strong style={{ color: 'var(--text-main, #e2e8f0)' }}>{project.title}</strong>
           </div>
         </div>
 
@@ -225,16 +225,16 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
             borderRadius: '16px',
             padding: '20px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
+            boxShadow: 'var(--shadow-sm, 0 4px 20px rgba(0, 0, 0, 0.25))',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted, #94a3b8)' }}>Best Value Pick</span>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34d399' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
               <TrendingDown size={16} />
             </div>
           </div>
-          <div style={{ fontSize: '20px', fontWeight: '800', color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-main, #ffffff)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {analysis && analysis.lowestCostOptionId && analysis.results[analysis.lowestCostOptionId]
               ? analysis.results[analysis.lowestCostOptionId].optionName
               : optionsCount > 0
@@ -254,7 +254,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
             borderRadius: '16px',
             padding: '20px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
+            boxShadow: 'var(--shadow-sm, 0 4px 20px rgba(0, 0, 0, 0.25))',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -263,10 +263,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               <Bookmark size={16} />
             </div>
           </div>
-          <div style={{ fontSize: '26px', fontWeight: '800', color: '#ffffff' }}>
-            {savedCount + SAMPLE_COMPARISONS.length} <span style={{ fontSize: '14px', fontWeight: '500', color: '#94a3b8' }}>projects ready</span>
+          <div style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-main, #ffffff)' }}>
+            {savedCount + SAMPLE_COMPARISONS.length} <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-muted, #94a3b8)' }}>projects ready</span>
           </div>
-          <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '6px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)', marginTop: '6px' }}>
             Includes 3 verified presets + your custom saves
           </div>
         </div>
@@ -277,7 +277,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
             borderRadius: '16px',
             padding: '20px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
+            boxShadow: 'var(--shadow-sm, 0 4px 20px rgba(0, 0, 0, 0.25))',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -286,11 +286,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               <Bell size={16} />
             </div>
           </div>
-          <div style={{ fontSize: '26px', fontWeight: '800', color: '#ffffff' }}>
-            {alertCount} <span style={{ fontSize: '14px', fontWeight: '500', color: '#94a3b8' }}>monitors configured</span>
+          <div style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-main, #ffffff)' }}>
+            {alertCount} <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-muted, #94a3b8)' }}>monitors configured</span>
           </div>
-          <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '6px' }}>
-            Currency: <strong style={{ color: '#e2e8f0' }}>{currency} ({sym})</strong>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)', marginTop: '6px' }}>
+            Currency: <strong style={{ color: 'var(--text-main, #e2e8f0)' }}>{currency} ({sym})</strong>
           </div>
         </div>
       </div>
@@ -304,12 +304,12 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
             borderRadius: '16px',
             padding: '24px',
-            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
+            boxShadow: 'var(--shadow-sm, 0 10px 30px rgba(0, 0, 0, 0.3))',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
             <div>
-              <h2 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 4px 0', color: '#ffffff' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 4px 0', color: 'var(--text-main, #ffffff)' }}>
                 Active Comparison: {project.title}
               </h2>
               <p style={{ fontSize: '13px', color: 'var(--text-muted, #94a3b8)', margin: 0 }}>
@@ -325,7 +325,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                 borderRadius: '8px',
                 backgroundColor: 'rgba(59, 130, 246, 0.15)',
                 border: '1px solid rgba(59, 130, 246, 0.3)',
-                color: '#93c5fd',
+                color: '#3b82f6',
                 fontSize: '12px',
                 fontWeight: '600',
                 cursor: 'pointer',
@@ -356,7 +356,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: '14px 16px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                      backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.03))',
                       border: isBest ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
                       borderRadius: '12px',
                       flexWrap: 'wrap',
@@ -365,7 +365,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                   >
                     <div style={{ minWidth: '180px', flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <strong style={{ fontSize: '15px', color: '#ffffff' }}>{opt.name}</strong>
+                        <strong style={{ fontSize: '15px', color: 'var(--text-main, #ffffff)' }}>{opt.name}</strong>
                         {isBest && (
                           <span
                             style={{
@@ -374,7 +374,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                               padding: '2px 6px',
                               borderRadius: '9999px',
                               backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                              color: '#34d399',
+                              color: '#10b981',
                               border: '1px solid rgba(16, 185, 129, 0.4)',
                             }}
                           >
@@ -382,22 +382,22 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                           </span>
                         )}
                       </div>
-                      <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '3px' }}>
-                        Category: <span style={{ textTransform: 'capitalize', color: '#cbd5e1' }}>{opt.category}</span> • Useful Life: {opt.usefulLifeYears || 3} yrs
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)', marginTop: '3px' }}>
+                        Category: <span style={{ textTransform: 'capitalize', color: 'var(--text-secondary, #cbd5e1)' }}>{opt.category}</span> • Useful Life: {opt.usefulLifeYears || 3} yrs
                       </div>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '20px', textAlign: 'right' }}>
                       <div>
-                        <div style={{ fontSize: '11px', color: '#94a3b8' }}>Upfront Listed</div>
-                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#e2e8f0', fontVariantNumeric: 'tabular-nums' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted, #94a3b8)' }}>Upfront Listed</div>
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main, #e2e8f0)', fontVariantNumeric: 'tabular-nums' }}>
                           {formatCurrency(upfront, currency)}
                         </div>
                       </div>
 
                       <div style={{ minWidth: '90px' }}>
-                        <div style={{ fontSize: '11px', color: '#38bdf8', fontWeight: '600' }}>3-Year TCO</div>
-                        <div style={{ fontSize: '16px', fontWeight: '800', color: isBest ? '#34d399' : '#ffffff', fontVariantNumeric: 'tabular-nums' }}>
+                        <div style={{ fontSize: '11px', color: '#0284c7', fontWeight: '600' }}>3-Year TCO</div>
+                        <div style={{ fontSize: '16px', fontWeight: '800', color: isBest ? '#10b981' : 'var(--text-main, #ffffff)', fontVariantNumeric: 'tabular-nums' }}>
                           {formatCurrency(totalCost, currency)}
                         </div>
                       </div>
@@ -411,13 +411,13 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               style={{
                 padding: '40px 20px',
                 textAlign: 'center',
-                backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.02))',
                 borderRadius: '12px',
                 border: '1px dashed var(--border-subtle, rgba(255, 255, 255, 0.15))',
               }}
             >
               <Layers size={36} style={{ color: 'var(--text-muted, #64748b)', margin: '0 auto 12px' }} />
-              <h3 style={{ fontSize: '16px', fontWeight: '600', margin: '0 0 6px 0', color: '#ffffff' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '600', margin: '0 0 6px 0', color: 'var(--text-main, #ffffff)' }}>
                 No Products Added to Comparison
               </h3>
               <p style={{ fontSize: '13px', color: 'var(--text-muted, #94a3b8)', maxWidth: '400px', margin: '0 auto 16px' }}>
@@ -444,10 +444,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
               borderRadius: '16px',
               padding: '20px',
-              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
+              boxShadow: 'var(--shadow-sm, 0 10px 30px rgba(0, 0, 0, 0.3))',
             }}
           >
-            <h3 style={{ fontSize: '15px', fontWeight: '700', margin: '0 0 14px 0', color: '#ffffff' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: '700', margin: '0 0 14px 0', color: 'var(--text-main, #ffffff)' }}>
               Quick Actions
             </h3>
 
@@ -461,9 +461,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                   gap: '10px',
                   padding: '10px 12px',
                   borderRadius: '10px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.03))',
                   border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-                  color: '#ffffff',
+                  color: 'var(--text-main, #ffffff)',
                   fontSize: '13px',
                   fontWeight: '500',
                   cursor: 'pointer',
@@ -483,9 +483,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                   gap: '10px',
                   padding: '10px 12px',
                   borderRadius: '10px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.03))',
                   border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-                  color: '#ffffff',
+                  color: 'var(--text-main, #ffffff)',
                   fontSize: '13px',
                   fontWeight: '500',
                   cursor: 'pointer',
@@ -505,16 +505,16 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                   gap: '10px',
                   padding: '10px 12px',
                   borderRadius: '10px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.03))',
                   border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-                  color: '#ffffff',
+                  color: 'var(--text-main, #ffffff)',
                   fontSize: '13px',
                   fontWeight: '500',
                   cursor: 'pointer',
                   textAlign: 'left',
                 }}
               >
-                <Settings size={16} style={{ color: '#94a3b8' }} />
+                <Settings size={16} style={{ color: 'var(--text-muted, #94a3b8)' }} />
                 <span>Workspace Settings & Currency</span>
               </button>
             </div>
@@ -527,10 +527,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
               borderRadius: '16px',
               padding: '20px',
-              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
+              boxShadow: 'var(--shadow-sm, 0 10px 30px rgba(0, 0, 0, 0.3))',
             }}
           >
-            <h3 style={{ fontSize: '15px', fontWeight: '700', margin: '0 0 4px 0', color: '#ffffff' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: '700', margin: '0 0 4px 0', color: 'var(--text-main, #ffffff)' }}>
               Verified Benchmarks
             </h3>
             <p style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)', margin: '0 0 14px 0' }}>
@@ -544,15 +544,15 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                   style={{
                     padding: '12px',
                     borderRadius: '10px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                    backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.03))',
                     border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <strong style={{ fontSize: '13px', color: '#ffffff' }}>{sample.title}</strong>
-                    <span style={{ fontSize: '11px', color: '#94a3b8' }}>{sample.options.length} options</span>
+                    <strong style={{ fontSize: '13px', color: 'var(--text-main, #ffffff)' }}>{sample.title}</strong>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted, #94a3b8)' }}>{sample.options.length} options</span>
                   </div>
-                  <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 8px 0', lineHeight: 1.4 }}>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted, #94a3b8)', margin: '0 0 8px 0', lineHeight: 1.4 }}>
                     {(sample.description || '').slice(0, 75)}…
                   </p>
                   <button
@@ -564,7 +564,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                       borderRadius: '6px',
                       backgroundColor: 'rgba(59, 130, 246, 0.12)',
                       border: '1px solid rgba(59, 130, 246, 0.25)',
-                      color: '#93c5fd',
+                      color: '#3b82f6',
                       fontSize: '11px',
                       fontWeight: '600',
                       cursor: 'pointer',

@@ -404,14 +404,15 @@ export async function updateUserProfileData(
   if (updates.photoURL && updates.photoURL.startsWith('data:image/') && storage && uid) {
     try {
       const fileRef = storageRef(storage, `users/${uid}/profile_${Date.now()}.webp`);
-      const uploadTask = uploadString(fileRef, updates.photoURL, 'data_url');
-      await withTimeout(uploadTask, 3500);
-      const downloadUrl = await withTimeout(getDownloadURL(fileRef), 2000);
-      if (downloadUrl) {
-        resolvedPhotoURL = downloadUrl;
+      const uploadRes = await withTimeout(uploadString(fileRef, updates.photoURL, 'data_url'), 3000);
+      if (uploadRes) {
+        const downloadUrl = await withTimeout(getDownloadURL(fileRef), 2000);
+        if (downloadUrl) {
+          resolvedPhotoURL = downloadUrl;
+        }
       }
-    } catch (stErr) {
-      console.warn('[Firebase Storage] Cloud upload optional fallback to data URL:', stErr);
+    } catch (stErr: any) {
+      console.warn('[Firebase Storage] Cloud upload fallback to compressed data URL:', stErr?.message || stErr);
       // Even if Storage is not enabled or restricted, the compressed data URL is kept for Firestore & localStorage
     }
   }
@@ -424,42 +425,47 @@ export async function updateUserProfileData(
     photoURL: resolvedPhotoURL,
   };
 
-  // 4. Update Firebase Auth user if active
+  // 4. Update Firebase Auth user and Firestore in parallel
+  const syncPromises: Promise<any>[] = [];
+
   if (auth && auth.currentUser) {
-    try {
-      // Firebase Auth updateProfile only accepts valid http/https URLs or null for photoURL (max length 2048 chars)
-      const authPhoto = resolvedPhotoURL && resolvedPhotoURL.startsWith('http') ? resolvedPhotoURL : null;
-      await withTimeout(
+    // Firebase Auth updateProfile only accepts valid http/https URLs or null for photoURL (max length 2048 chars)
+    const authPhoto = resolvedPhotoURL && resolvedPhotoURL.startsWith('http') ? resolvedPhotoURL : null;
+    syncPromises.push(
+      withTimeout(
         updateProfile(auth.currentUser, {
           displayName: updatedProfile.displayName,
           photoURL: authPhoto,
         }),
         2500
-      );
-    } catch (authErr) {
-      console.warn('[Firebase] Auth profile update optional sync:', authErr);
-    }
+      ).catch((authErr) => console.warn('[Firebase] Auth profile update optional sync:', authErr?.message || authErr))
+    );
   }
 
-  // 5. Update Firestore if database is configured
   if (db && uid) {
-    try {
-      const userRef = doc(db, 'users', uid);
-      await withTimeout(
-        setDoc(userRef, {
-          displayName: updatedProfile.displayName,
-          phoneNumber: updatedProfile.phoneNumber || null,
-          photoURL: updatedProfile.photoURL || null,
-          updatedAt: new Date().toISOString(),
-        }, { merge: true }),
+    const userRef = doc(db, 'users', uid);
+    syncPromises.push(
+      withTimeout(
+        setDoc(
+          userRef,
+          {
+            displayName: updatedProfile.displayName,
+            phoneNumber: updatedProfile.phoneNumber || null,
+            photoURL: updatedProfile.photoURL || null,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        ),
         2500
-      );
-    } catch (dbErr) {
-      console.warn('[Firebase] Firestore profile update optional sync:', dbErr);
-    }
+      ).catch((dbErr) => console.warn('[Firebase] Firestore profile update optional sync:', dbErr?.message || dbErr))
+    );
   }
 
-  // 6. Update local accounts store if running in resilient mode
+  if (syncPromises.length > 0) {
+    await Promise.allSettled(syncPromises);
+  }
+
+  // 5. Update local accounts store if running in resilient mode
   const accounts = getLocalAccounts();
   const accIndex = accounts.findIndex((a) => a.uid === uid || (updatedProfile.email && a.email.toLowerCase() === updatedProfile.email.toLowerCase()));
   if (accIndex >= 0) {

@@ -170,7 +170,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
           }}
         >
           <div>
-            <h2 id="settings-modal-title" style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: '#ffffff' }}>
+            <h2 id="settings-modal-title" style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: 'var(--text-main, #ffffff)' }}>
               Workspace Settings & Preferences
             </h2>
             <p style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)', margin: 0 }}>
@@ -203,7 +203,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
           style={{
             display: 'flex',
             borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-            backgroundColor: 'rgba(255, 255, 255, 0.02)',
+            backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.02))',
             padding: '0 16px',
             overflowX: 'auto',
           }}
@@ -240,7 +240,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
             onClick={() => setActiveTab('ai')}
             style={tabButtonStyle(activeTab === 'ai')}
           >
-            <Sparkles size={14} style={{ color: isAiLive ? '#34d399' : '#facc15' }} />
+            <Sparkles size={14} style={{ color: isAiLive ? '#10b981' : '#facc15' }} />
             <span>Nemotron AI</span>
           </button>
 
@@ -265,7 +265,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '16px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.03))',
                   borderRadius: '12px',
                   border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
                   flexWrap: 'wrap',
@@ -273,14 +273,14 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
                 }}
               >
                 <div>
-                  <h3 style={{ fontSize: '15px', fontWeight: '700', margin: '0 0 4px 0', color: '#ffffff' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: '700', margin: '0 0 4px 0', color: 'var(--text-main, #ffffff)' }}>
                     {userProfile?.displayName || 'VeraCost User'}
                   </h3>
-                  <div style={{ fontSize: '13px', color: '#94a3b8' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted, #94a3b8)' }}>
                     {userProfile?.email || 'user@veracost.app'}
                   </div>
                   {userProfile?.phoneNumber && (
-                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)', marginTop: '2px' }}>
                       Phone: {userProfile.phoneNumber}
                     </div>
                   )}
@@ -303,12 +303,12 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
               <div
                 style={{
                   padding: '16px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.03))',
                   borderRadius: '12px',
                   border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
                 }}
               >
-                <h4 style={{ fontSize: '14px', fontWeight: '600', margin: '0 0 6px 0', color: '#ffffff' }}>
+                <h4 style={{ fontSize: '14px', fontWeight: '600', margin: '0 0 6px 0', color: 'var(--text-main, #ffffff)' }}>
                   Account Security & Password
                 </h4>
                 <p style={{ fontSize: '12px', color: '#94a3b8', margin: '0 0 12px 0' }}>
@@ -413,10 +413,10 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
           {activeTab === 'appearance' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div>
-                <h3 style={{ fontSize: '15px', fontWeight: '700', margin: '0 0 6px 0', color: '#ffffff' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: '700', margin: '0 0 6px 0', color: 'var(--text-main, #ffffff)' }}>
                   Color Theme
                 </h3>
-                <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 16px 0' }}>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted, #94a3b8)', margin: '0 0 16px 0' }}>
                   Select your interface theme. Your choice is automatically saved across sessions.
                 </p>
 
@@ -429,9 +429,9 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
                     style={{
                       padding: '16px',
                       borderRadius: '12px',
-                      backgroundColor: theme === 'dark' ? 'rgba(37, 99, 235, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                      backgroundColor: theme === 'dark' ? 'rgba(37, 99, 235, 0.15)' : 'var(--bg-elevated, rgba(255, 255, 255, 0.03))',
                       border: theme === 'dark' ? '2px solid #3b82f6' : '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
-                      color: '#ffffff',
+                      color: 'var(--text-main, #ffffff)',
                       cursor: 'pointer',
                       display: 'flex',
                       flexDirection: 'column',
@@ -444,7 +444,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
                       <Moon size={18} style={{ color: '#60a5fa' }} />
                       <strong style={{ fontSize: '14px' }}>Dark Theme</strong>
                     </div>
-                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)' }}>
                       Sleek high-contrast fintech aesthetic for low-light comfort.
                     </span>
                   </button>
@@ -457,9 +457,9 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
                     style={{
                       padding: '16px',
                       borderRadius: '12px',
-                      backgroundColor: theme === 'light' ? 'rgba(37, 99, 235, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                      backgroundColor: theme === 'light' ? 'rgba(37, 99, 235, 0.15)' : 'var(--bg-elevated, rgba(255, 255, 255, 0.03))',
                       border: theme === 'light' ? '2px solid #3b82f6' : '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
-                      color: '#ffffff',
+                      color: 'var(--text-main, #ffffff)',
                       cursor: 'pointer',
                       display: 'flex',
                       flexDirection: 'column',
@@ -472,7 +472,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
                       <Sun size={18} style={{ color: '#facc15' }} />
                       <strong style={{ fontSize: '14px' }}>Light Theme</strong>
                     </div>
-                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)' }}>
                       Clean, high-legibility interface for bright ambient environments.
                     </span>
                   </button>
@@ -485,10 +485,10 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
           {activeTab === 'preferences' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div>
-                <h3 style={{ fontSize: '15px', fontWeight: '700', margin: '0 0 6px 0', color: '#ffffff' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: '700', margin: '0 0 6px 0', color: 'var(--text-main, #ffffff)' }}>
                   Base Currency
                 </h3>
-                <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 14px 0' }}>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted, #94a3b8)', margin: '0 0 14px 0' }}>
                   Sets the default denomination for TCO calculations and retailer quotes.
                 </p>
 
@@ -501,17 +501,17 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
                       style={{
                         padding: '12px',
                         borderRadius: '10px',
-                        backgroundColor: currency === curr.code ? 'rgba(37, 99, 235, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                        backgroundColor: currency === curr.code ? 'rgba(37, 99, 235, 0.15)' : 'var(--bg-elevated, rgba(255, 255, 255, 0.03))',
                         border: currency === curr.code ? '2px solid #3b82f6' : '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-                        color: '#ffffff',
+                        color: 'var(--text-main, #ffffff)',
                         cursor: 'pointer',
                         textAlign: 'center',
                       }}
                     >
-                      <div style={{ fontSize: '18px', fontWeight: '800', color: currency === curr.code ? '#60a5fa' : '#cbd5e1' }}>
+                      <div style={{ fontSize: '18px', fontWeight: '800', color: currency === curr.code ? '#2563eb' : 'var(--text-main, #cbd5e1)' }}>
                         {curr.symbol} {curr.code}
                       </div>
-                      <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted, #94a3b8)', marginTop: '2px' }}>
                         {curr.label.split('(')[0]}
                       </div>
                     </button>
@@ -523,12 +523,12 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
               <div
                 style={{
                   padding: '16px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.03))',
                   borderRadius: '12px',
                   border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
                 }}
               >
-                <h4 style={{ fontSize: '14px', fontWeight: '600', margin: '0 0 4px 0', color: '#ffffff' }}>
+                <h4 style={{ fontSize: '14px', fontWeight: '600', margin: '0 0 4px 0', color: 'var(--text-main, #ffffff)' }}>
                   Data Management
                 </h4>
                 <p style={{ fontSize: '12px', color: '#94a3b8', margin: '0 0 12px 0' }}>
@@ -564,7 +564,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <h3 style={{ fontSize: '15px', fontWeight: '700', margin: 0, color: '#ffffff' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: '700', margin: 0, color: 'var(--text-main, #ffffff)' }}>
                     NVIDIA Nemotron via Nebius Token Factory
                   </h3>
                   <span
@@ -574,7 +574,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
                       borderRadius: '9999px',
                       fontWeight: '700',
                       backgroundColor: isAiLive ? 'rgba(16, 185, 129, 0.15)' : 'rgba(234, 179, 8, 0.15)',
-                      color: isAiLive ? '#34d399' : '#facc15',
+                      color: isAiLive ? '#10b981' : '#facc15',
                       border: isAiLive ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(234, 179, 8, 0.3)',
                     }}
                   >
@@ -582,12 +582,12 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
                   </span>
                 </div>
 
-                <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 16px 0', lineHeight: 1.5 }}>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted, #94a3b8)', margin: '0 0 16px 0', lineHeight: 1.5 }}>
                   VeraCost uses NVIDIA Llama-3.1-Nemotron-70B for autonomous decision synthesis and cost audits. When cloud credentials are not supplied, our high-speed client assistant engine handles queries offline.
                 </p>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-main, #cbd5e1)', marginBottom: '6px' }}>
                     Custom Nebius API Key (Optional)
                   </label>
                   <div style={{ display: 'flex', gap: '8px' }}>
@@ -599,10 +599,10 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
                       style={{
                         flex: 1,
                         padding: '10px 12px',
-                        backgroundColor: 'rgba(15, 23, 42, 0.65)',
-                        border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.15))',
+                        backgroundColor: 'var(--bg-input, rgba(15, 23, 42, 0.65))',
+                        border: '1px solid var(--border-medium, rgba(255, 255, 255, 0.15))',
                         borderRadius: '10px',
-                        color: '#ffffff',
+                        color: 'var(--text-main, #ffffff)',
                         fontSize: '13px',
                         outline: 'none',
                       }}
@@ -616,7 +616,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
                         borderRadius: '10px',
                         backgroundColor: 'rgba(59, 130, 246, 0.2)',
                         border: '1px solid rgba(59, 130, 246, 0.4)',
-                        color: '#93c5fd',
+                        color: '#3b82f6',
                         fontSize: '13px',
                         fontWeight: '600',
                         cursor: isTestingKey ? 'not-allowed' : 'pointer',
@@ -638,7 +638,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
                       backgroundColor: testResult.success ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
                       border: testResult.success ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
                       borderRadius: '8px',
-                      color: testResult.success ? '#6ee7b7' : '#fca5a5',
+                      color: testResult.success ? '#10b981' : '#fca5a5',
                       fontSize: '13px',
                       marginTop: '12px',
                     }}
@@ -655,17 +655,17 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
           {activeTab === 'support' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div>
-                <h3 style={{ fontSize: '15px', fontWeight: '700', margin: '0 0 6px 0', color: '#ffffff' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: '700', margin: '0 0 6px 0', color: 'var(--text-main, #ffffff)' }}>
                   Official Lead Architect Support
                 </h3>
-                <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 16px 0', lineHeight: 1.5 }}>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted, #94a3b8)', margin: '0 0 16px 0', lineHeight: 1.5 }}>
                   Need assistance with calculations, retailer integrations, or features? You can contact Lead Developer Ronak Bairagi directly.
                 </p>
 
                 <div
                   style={{
                     padding: '16px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                    backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.03))',
                     borderRadius: '12px',
                     border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
                   }}
@@ -680,7 +680,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#60a5fa',
+                        color: '#3b82f6',
                         fontWeight: 'bold',
                         fontSize: '16px',
                       }}
@@ -688,21 +688,21 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
                       RB
                     </div>
                     <div>
-                      <strong style={{ fontSize: '14px', color: '#ffffff' }}>
+                      <strong style={{ fontSize: '14px', color: 'var(--text-main, #ffffff)' }}>
                         {SUPPORT_CONFIG.leadDeveloper.name}
                       </strong>
-                      <div style={{ fontSize: '12px', color: 'var(--teal-bright, #38bdf8)' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--teal-bright, #0284c7)' }}>
                         {SUPPORT_CONFIG.leadDeveloper.role}
                       </div>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: '#cbd5e1' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: 'var(--text-secondary, #cbd5e1)' }}>
                     <div>
                       Email:{' '}
                       <a 
                         href={`mailto:${SUPPORT_CONFIG.leadDeveloper.email}`} 
-                        style={{ color: '#60a5fa', textDecoration: 'none' }}
+                        style={{ color: '#2563eb', textDecoration: 'none' }}
                       >
                         {SUPPORT_CONFIG.leadDeveloper.email}
                       </a>
@@ -711,12 +711,12 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
                       Phone:{' '}
                       <a 
                         href={`tel:${SUPPORT_CONFIG.leadDeveloper.phone}`} 
-                        style={{ color: '#60a5fa', textDecoration: 'none' }}
+                        style={{ color: '#2563eb', textDecoration: 'none' }}
                       >
                         {SUPPORT_CONFIG.leadDeveloper.formattedPhone}
                       </a>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)' }}>
                       Availability: {SUPPORT_CONFIG.leadDeveloper.availability}
                     </div>
                   </div>
@@ -745,7 +745,7 @@ const tabButtonStyle = (isActive: boolean): React.CSSProperties => ({
   background: 'none',
   border: 'none',
   borderBottom: isActive ? '2px solid #3b82f6' : '2px solid transparent',
-  color: isActive ? '#ffffff' : 'var(--text-muted, #94a3b8)',
+  color: isActive ? 'var(--text-main, #ffffff)' : 'var(--text-muted, #94a3b8)',
   fontSize: '13px',
   fontWeight: isActive ? '600' : '500',
   cursor: 'pointer',

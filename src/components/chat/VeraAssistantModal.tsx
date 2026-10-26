@@ -619,7 +619,7 @@ export const VeraAssistantModal: React.FC<VeraAssistantModalProps> = ({
                   ? 'var(--teal-bright)'
                   : m.isError
                   ? 'rgba(239, 68, 68, 0.1)'
-                  : 'rgba(255, 255, 255, 0.06)',
+                  : 'var(--bg-elevated, rgba(255, 255, 255, 0.06))',
                 color: m.role === 'user'
                   ? '#080c14'
                   : m.isError

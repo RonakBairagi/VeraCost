@@ -148,9 +148,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#050814',
-        backgroundImage: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(30, 58, 138, 0.22) 0%, rgba(5, 8, 20, 0.98) 100%)',
-        color: '#f8fafc',
+        backgroundColor: 'var(--bg-app, #050814)',
+        backgroundImage: 'var(--dashboard-banner-bg, radial-gradient(ellipse 80% 60% at 50% 0%, rgba(30, 58, 138, 0.22) 0%, rgba(5, 8, 20, 0.98) 100%))',
+        color: 'var(--text-main, #f8fafc)',
         fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
         padding: '24px 16px',
         boxSizing: 'border-box',
@@ -179,13 +179,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
           position: 'relative',
           maxWidth: '460px',
           width: '100%',
-          background: 'rgba(15, 23, 42, 0.88)',
+          background: 'var(--bg-card, rgba(15, 23, 42, 0.88))',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
+          border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
           borderRadius: '24px',
           padding: '36px 32px',
-          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.04)',
+          boxShadow: 'var(--shadow-md, 0 25px 60px -15px rgba(0, 0, 0, 0.75))',
           boxSizing: 'border-box',
         }}
       >
@@ -246,7 +246,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
                 fontWeight: '800',
                 margin: 0,
                 fontFamily: 'Outfit, Inter, sans-serif',
-                color: '#ffffff',
+                color: 'var(--text-main, #ffffff)',
                 letterSpacing: '-0.3px',
               }}
             >
@@ -259,7 +259,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
                 borderRadius: '9999px',
                 fontWeight: '700',
                 background: 'rgba(59, 130, 246, 0.16)',
-                color: '#93c5fd',
+                color: '#3b82f6',
                 border: '1px solid rgba(59, 130, 246, 0.3)',
               }}
             >
@@ -271,7 +271,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
             style={{
               fontSize: '16px',
               fontWeight: '600',
-              color: '#e2e8f0',
+              color: 'var(--text-main, #e2e8f0)',
               margin: '4px 0 6px 0',
             }}
           >
@@ -281,7 +281,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
               ? 'Reset Account Password'
               : 'Sign In to Your Workspace'}
           </h2>
-          <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted, #94a3b8)', margin: 0, lineHeight: 1.5 }}>
             {mode === 'register'
               ? 'Save your product comparisons and uncover true lifetime ownership costs.'
               : mode === 'forgot'
@@ -296,11 +296,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
             role="tablist"
             style={{
               display: 'flex',
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.05))',
               padding: '4px',
               borderRadius: '12px',
               marginBottom: '24px',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
             }}
           >
             <button
@@ -314,7 +314,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
                 border: 'none',
                 borderRadius: '8px',
                 backgroundColor: mode === 'login' ? '#2563eb' : 'transparent',
-                color: mode === 'login' ? '#ffffff' : '#94a3b8',
+                color: mode === 'login' ? '#ffffff' : 'var(--text-muted, #94a3b8)',
                 fontWeight: '600',
                 fontSize: '14px',
                 cursor: 'pointer',
@@ -335,7 +335,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
                 border: 'none',
                 borderRadius: '8px',
                 backgroundColor: mode === 'register' ? '#2563eb' : 'transparent',
-                color: mode === 'register' ? '#ffffff' : '#94a3b8',
+                color: mode === 'register' ? '#ffffff' : 'var(--text-muted, #94a3b8)',
                 fontWeight: '600',
                 fontSize: '14px',
                 cursor: 'pointer',
@@ -400,12 +400,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
             <div>
               <label 
                 htmlFor="auth-fullname"
-                style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}
+                style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-main, #cbd5e1)', marginBottom: '6px' }}
               >
                 Full Name
               </label>
               <div style={{ position: 'relative' }}>
-                <UserIcon size={18} color="#64748b" style={{ position: 'absolute', left: '14px', top: '14px' }} />
+                <UserIcon size={18} color="var(--text-muted, #64748b)" style={{ position: 'absolute', left: '14px', top: '14px' }} />
                 <input
                   id="auth-fullname"
                   type="text"
@@ -418,10 +418,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
                     width: '100%',
                     boxSizing: 'border-box',
                     padding: '12px 14px 12px 42px',
-                    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    backgroundColor: 'var(--bg-input, rgba(15, 23, 42, 0.65))',
+                    border: '1px solid var(--border-medium, rgba(255, 255, 255, 0.15))',
                     borderRadius: '12px',
-                    color: '#f8fafc',
+                    color: 'var(--text-main, #f8fafc)',
                     fontSize: '15px',
                     outline: 'none',
                     transition: 'border-color 0.15s ease',
@@ -435,12 +435,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
           <div>
             <label 
               htmlFor="auth-email"
-              style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}
+              style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-main, #cbd5e1)', marginBottom: '6px' }}
             >
               Email Address
             </label>
             <div style={{ position: 'relative' }}>
-              <Mail size={18} color="#64748b" style={{ position: 'absolute', left: '14px', top: '14px' }} />
+              <Mail size={18} color="var(--text-muted, #64748b)" style={{ position: 'absolute', left: '14px', top: '14px' }} />
               <input
                 id="auth-email"
                 type="email"
@@ -453,10 +453,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
                   width: '100%',
                   boxSizing: 'border-box',
                   padding: '12px 14px 12px 42px',
-                  backgroundColor: 'rgba(15, 23, 42, 0.65)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  backgroundColor: 'var(--bg-input, rgba(15, 23, 42, 0.65))',
+                  border: '1px solid var(--border-medium, rgba(255, 255, 255, 0.15))',
                   borderRadius: '12px',
-                  color: '#f8fafc',
+                  color: 'var(--text-main, #f8fafc)',
                   fontSize: '15px',
                   outline: 'none',
                   transition: 'border-color 0.15s ease',
@@ -470,12 +470,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
             <div>
               <label 
                 htmlFor="auth-phone"
-                style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}
+                style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-main, #cbd5e1)', marginBottom: '6px' }}
               >
-                Phone Number <span style={{ color: '#64748b', fontWeight: 'normal' }}>(Optional)</span>
+                Phone Number <span style={{ color: 'var(--text-muted, #64748b)', fontWeight: 'normal' }}>(Optional)</span>
               </label>
               <div style={{ position: 'relative' }}>
-                <Phone size={18} color="#64748b" style={{ position: 'absolute', left: '14px', top: '14px' }} />
+                <Phone size={18} color="var(--text-muted, #64748b)" style={{ position: 'absolute', left: '14px', top: '14px' }} />
                 <input
                   id="auth-phone"
                   type="tel"
@@ -487,10 +487,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
                     width: '100%',
                     boxSizing: 'border-box',
                     padding: '12px 14px 12px 42px',
-                    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    backgroundColor: 'var(--bg-input, rgba(15, 23, 42, 0.65))',
+                    border: '1px solid var(--border-medium, rgba(255, 255, 255, 0.15))',
                     borderRadius: '12px',
-                    color: '#f8fafc',
+                    color: 'var(--text-main, #f8fafc)',
                     fontSize: '15px',
                     outline: 'none',
                     transition: 'border-color 0.15s ease',
@@ -506,7 +506,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <label 
                   htmlFor="auth-password"
-                  style={{ fontSize: '13px', fontWeight: '600', color: '#cbd5e1' }}
+                  style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-main, #cbd5e1)' }}
                 >
                   Password
                 </label>
@@ -518,7 +518,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
                       background: 'none',
                       border: 'none',
                       padding: 0,
-                      color: '#60a5fa',
+                      color: '#3b82f6',
                       fontSize: '13px',
                       fontWeight: '500',
                       cursor: 'pointer',
@@ -529,7 +529,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
                 )}
               </div>
               <div style={{ position: 'relative' }}>
-                <Lock size={18} color="#64748b" style={{ position: 'absolute', left: '14px', top: '14px' }} />
+                <Lock size={18} color="var(--text-muted, #64748b)" style={{ position: 'absolute', left: '14px', top: '14px' }} />
                 <input
                   id="auth-password"
                   type={showPassword ? 'text' : 'password'}
@@ -542,10 +542,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
                     width: '100%',
                     boxSizing: 'border-box',
                     padding: '12px 44px 12px 42px',
-                    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    backgroundColor: 'var(--bg-input, rgba(15, 23, 42, 0.65))',
+                    border: '1px solid var(--border-medium, rgba(255, 255, 255, 0.15))',
                     borderRadius: '12px',
-                    color: '#f8fafc',
+                    color: 'var(--text-main, #f8fafc)',
                     fontSize: '15px',
                     outline: 'none',
                     transition: 'border-color 0.15s ease',
@@ -561,7 +561,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
                     top: '12px',
                     background: 'none',
                     border: 'none',
-                    color: '#94a3b8',
+                    color: 'var(--text-muted, #94a3b8)',
                     cursor: 'pointer',
                     padding: '4px',
                     display: 'flex',
@@ -628,7 +628,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#94a3b8',
+                color: 'var(--text-muted, #94a3b8)',
                 fontSize: '14px',
                 cursor: 'pointer',
                 fontWeight: '500',
@@ -645,15 +645,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
             display: 'flex',
             alignItems: 'center',
             margin: '22px 0 16px',
-            color: '#64748b',
+            color: 'var(--text-muted, #64748b)',
             fontSize: '12px',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
           }}
         >
-          <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(255, 255, 255, 0.1)' }} />
+          <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-subtle, rgba(255, 255, 255, 0.1))' }} />
           <span style={{ padding: '0 12px' }}>or</span>
-          <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(255, 255, 255, 0.1)' }} />
+          <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-subtle, rgba(255, 255, 255, 0.1))' }} />
         </div>
 
         {/* Guest Explorer Option */}
@@ -665,9 +665,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
             width: '100%',
             padding: '11px',
             borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.14)',
-            backgroundColor: 'rgba(255, 255, 255, 0.04)',
-            color: '#cbd5e1',
+            border: '1px solid var(--border-medium, rgba(255, 255, 255, 0.14))',
+            backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.04))',
+            color: 'var(--text-main, #cbd5e1)',
             fontSize: '14px',
             fontWeight: '500',
             cursor: isLoading ? 'not-allowed' : 'pointer',

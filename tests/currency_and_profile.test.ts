@@ -6,7 +6,7 @@ import {
   getCurrencySymbol,
   convertProjectCurrency,
 } from '../src/services/currencyConverter';
-import { compressProfileImage, withTimeout } from '../src/config/firebase';
+import { compressProfileImage, withTimeout, updateUserProfileData } from '../src/config/firebase';
 import { SAMPLE_COMPARISONS } from '../src/data/sampleComparisons';
 
 describe('VeraCost Currency Conversion & Financial Accuracy', () => {
@@ -99,5 +99,33 @@ describe('VeraCost Profile & Timeout Resilience', () => {
     const fastPromise = Promise.resolve('fast_result');
     const result = await withTimeout(fastPromise, 500, 'fallback');
     expect(result).toBe('fast_result');
+  });
+
+  it('updateUserProfileData updates profile and persists to localStorage reliably without timeout', async () => {
+    const mockStorage: Record<string, string> = {};
+    if (typeof globalThis.localStorage === 'undefined') {
+      (globalThis as any).localStorage = {
+        getItem: (k: string) => mockStorage[k] || null,
+        setItem: (k: string, v: string) => { mockStorage[k] = v; },
+        removeItem: (k: string) => { delete mockStorage[k]; },
+        clear: () => { Object.keys(mockStorage).forEach(k => delete mockStorage[k]); },
+      };
+    }
+
+    const testUid = 'test-uid-789';
+    const profile = await updateUserProfileData(testUid, {
+      displayName: 'Alice Engineer',
+      phoneNumber: '+1 555 123 4567',
+      photoURL: 'data:image/webp;base64,UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==',
+    });
+
+    expect(profile.displayName).toBe('Alice Engineer');
+    expect(profile.phoneNumber).toBe('+1 555 123 4567');
+    expect(profile.photoURL).toBeDefined();
+
+    // Verify localStorage persistence
+    const saved = JSON.parse(globalThis.localStorage.getItem('veracost_current_user') || '{}');
+    expect(saved.displayName).toBe('Alice Engineer');
+    expect(saved.photoURL).toBe('data:image/webp;base64,UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==');
   });
 });

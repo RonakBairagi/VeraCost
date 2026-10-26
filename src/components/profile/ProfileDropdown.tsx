@@ -109,7 +109,7 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
       <div
         style={{
           padding: '16px 18px',
-          background: 'linear-gradient(180deg, rgba(37, 99, 235, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%)',
+          background: 'var(--dropdown-header-bg, linear-gradient(180deg, rgba(37, 99, 235, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%))',
           borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
         }}
       >
@@ -167,7 +167,7 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
                   fontWeight: '700',
                   textTransform: 'uppercase',
                   background: isGuest ? 'rgba(234, 179, 8, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                  color: isGuest ? '#facc15' : '#34d399',
+                  color: isGuest ? '#facc15' : '#10b981',
                   border: isGuest ? '1px solid rgba(234, 179, 8, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
                   flexShrink: 0,
                 }}
@@ -224,9 +224,9 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
             width: '100%',
             padding: '7px 12px',
             borderRadius: '8px',
-            backgroundColor: 'rgba(255, 255, 255, 0.06)',
+            backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.06))',
             border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
-            color: 'var(--cyan-bright, #38bdf8)',
+            color: 'var(--teal-bright, #0284c7)',
             fontSize: '12px',
             fontWeight: '600',
             cursor: 'pointer',
