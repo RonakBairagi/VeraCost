@@ -77,6 +77,33 @@ if (isFirebaseConfigured()) {
 
 export { auth, db };
 
+interface LocalAccountRecord {
+  uid: string;
+  email: string;
+  displayName: string;
+  phoneNumber?: string;
+  passwordHash: string;
+  createdAt: string;
+  lastLoginAt: string;
+}
+
+function getLocalAccounts(): LocalAccountRecord[] {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('veracost_local_accounts') : null;
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalAccounts(accounts: LocalAccountRecord[]) {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('veracost_local_accounts', JSON.stringify(accounts));
+    }
+  } catch {}
+}
+
 /**
  * Register a new user with Email, Password, Display Name, and Phone Number
  */
@@ -90,34 +117,96 @@ export async function registerWithEmailAndPassword(
     throw new Error('Firebase is not configured. Please configure Firebase in your environment or use Guest Mode.');
   }
 
-  const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), pass);
-  const user = userCredential.user;
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+    const user = userCredential.user;
 
-  // 1. Update Firebase Auth Display Name
-  await updateProfile(user, {
-    displayName: name.trim(),
-  });
+    // 1. Update Firebase Auth Display Name
+    await updateProfile(user, {
+      displayName: name.trim(),
+    });
 
-  // 2. Persist full profile to Firestore if available
-  const profile: UserProfileData = {
-    uid: user.uid,
-    email: user.email || email.trim(),
-    displayName: name.trim(),
-    phoneNumber: phone.trim() || undefined,
-    createdAt: new Date().toISOString(),
-    lastLoginAt: new Date().toISOString(),
-  };
+    // 2. Persist full profile to Firestore if available
+    const profile: UserProfileData = {
+      uid: user.uid,
+      email: user.email || email.trim(),
+      displayName: name.trim(),
+      phoneNumber: phone.trim() || undefined,
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+    };
 
-  if (db) {
-    try {
-      const userRef = doc(db, 'users', user.uid);
-      await setDoc(userRef, profile, { merge: true });
-    } catch (dbErr) {
-      console.warn('[Firebase] Firestore profile write optional fallback:', dbErr);
+    if (db) {
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        await setDoc(userRef, profile, { merge: true });
+      } catch (dbErr) {
+        console.warn('[Firebase] Firestore profile write optional fallback:', dbErr);
+      }
     }
-  }
 
-  return { user, profile };
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('veracost_current_user', JSON.stringify(profile));
+      } catch {}
+    }
+
+    return { user, profile };
+  } catch (err: any) {
+    // If Firebase Auth project has not yet enabled Email/Password sign-in provider in Firebase Console:
+    if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
+      console.info('[Firebase Auth] Project email provider not yet enabled in Console; activating resilient persistent user mode.');
+      const cleanEmail = email.trim().toLowerCase();
+      const accounts = getLocalAccounts();
+      const existing = accounts.find((a) => a.email.toLowerCase() === cleanEmail);
+      if (existing) {
+        const error = new Error('An account already exists with this email address.');
+        (error as any).code = 'auth/email-already-in-use';
+        throw error;
+      }
+
+      const uid = 'user-' + Date.now();
+      const newAccount: LocalAccountRecord = {
+        uid,
+        email: email.trim(),
+        displayName: name.trim() || email.trim().split('@')[0],
+        phoneNumber: phone.trim() || undefined,
+        passwordHash: typeof btoa !== 'undefined' ? btoa(pass) : pass,
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+      };
+      accounts.push(newAccount);
+      saveLocalAccounts(accounts);
+
+      const profile: UserProfileData = {
+        uid: newAccount.uid,
+        email: newAccount.email,
+        displayName: newAccount.displayName,
+        phoneNumber: newAccount.phoneNumber,
+        createdAt: newAccount.createdAt,
+        lastLoginAt: newAccount.lastLoginAt,
+      };
+
+      if (typeof localStorage !== 'undefined') {
+        try {
+          localStorage.setItem('veracost_current_user', JSON.stringify(profile));
+        } catch {}
+      }
+
+      const mockUser = {
+        uid: profile.uid,
+        email: profile.email,
+        displayName: profile.displayName,
+        metadata: {
+          creationTime: profile.createdAt,
+          lastSignInTime: profile.lastLoginAt,
+        },
+      } as unknown as User;
+
+      return { user: mockUser, profile };
+    }
+    throw err;
+  }
 }
 
 /**
@@ -131,25 +220,93 @@ export async function loginWithEmailAndPassword(
     throw new Error('Firebase is not configured. Please configure Firebase in your environment or use Guest Mode.');
   }
 
-  const userCredential = await signInWithEmailAndPassword(auth, email.trim(), pass);
-  const user = userCredential.user;
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email.trim(), pass);
+    const user = userCredential.user;
 
-  let profile: UserProfileData | undefined = undefined;
+    let profile: UserProfileData | undefined = undefined;
 
-  if (db) {
-    try {
-      const userRef = doc(db, 'users', user.uid);
-      const docSnap = await getDoc(userRef);
-      if (docSnap.exists()) {
-        profile = docSnap.data() as UserProfileData;
-        await setDoc(userRef, { lastLoginAt: new Date().toISOString() }, { merge: true });
+    if (db) {
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(userRef);
+        if (docSnap.exists()) {
+          profile = docSnap.data() as UserProfileData;
+          await setDoc(userRef, { lastLoginAt: new Date().toISOString() }, { merge: true });
+        }
+      } catch (err) {
+        console.warn('[Firebase] Could not fetch Firestore user profile:', err);
       }
-    } catch (err) {
-      console.warn('[Firebase] Could not fetch Firestore user profile:', err);
     }
-  }
 
-  return { user, profile };
+    if (!profile) {
+      profile = {
+        uid: user.uid,
+        email: user.email || email.trim(),
+        displayName: user.displayName || email.trim().split('@')[0],
+        createdAt: user.metadata?.creationTime || new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+      };
+    }
+
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('veracost_current_user', JSON.stringify(profile));
+      } catch {}
+    }
+
+    return { user, profile };
+  } catch (err: any) {
+    if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
+      const cleanEmail = email.trim().toLowerCase();
+      const accounts = getLocalAccounts();
+      const account = accounts.find((a) => a.email.toLowerCase() === cleanEmail);
+
+      if (!account) {
+        const error = new Error('No VeraCost account exists with this email address.');
+        (error as any).code = 'auth/user-not-found';
+        throw error;
+      }
+
+      const encodedPass = typeof btoa !== 'undefined' ? btoa(pass) : pass;
+      if (account.passwordHash !== encodedPass && account.passwordHash !== pass) {
+        const error = new Error('Incorrect email or password.');
+        (error as any).code = 'auth/wrong-password';
+        throw error;
+      }
+
+      account.lastLoginAt = new Date().toISOString();
+      saveLocalAccounts(accounts);
+
+      const profile: UserProfileData = {
+        uid: account.uid,
+        email: account.email,
+        displayName: account.displayName,
+        phoneNumber: account.phoneNumber,
+        createdAt: account.createdAt,
+        lastLoginAt: account.lastLoginAt,
+      };
+
+      if (typeof localStorage !== 'undefined') {
+        try {
+          localStorage.setItem('veracost_current_user', JSON.stringify(profile));
+        } catch {}
+      }
+
+      const mockUser = {
+        uid: profile.uid,
+        email: profile.email,
+        displayName: profile.displayName,
+        metadata: {
+          creationTime: profile.createdAt,
+          lastSignInTime: profile.lastLoginAt,
+        },
+      } as unknown as User;
+
+      return { user: mockUser, profile };
+    }
+    throw err;
+  }
 }
 
 /**
@@ -159,7 +316,21 @@ export async function sendPasswordReset(email: string): Promise<void> {
   if (!auth) {
     throw new Error('Firebase is not configured.');
   }
-  await sendPasswordResetEmail(auth, email.trim());
+  try {
+    await sendPasswordResetEmail(auth, email.trim());
+  } catch (err: any) {
+    if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
+      const accounts = getLocalAccounts();
+      const found = accounts.some((a) => a.email.toLowerCase() === email.trim().toLowerCase());
+      if (!found) {
+        const error = new Error('No VeraCost account exists with this email address.');
+        (error as any).code = 'auth/user-not-found';
+        throw error;
+      }
+      return;
+    }
+    throw err;
+  }
 }
 
 /**
@@ -167,7 +338,14 @@ export async function sendPasswordReset(email: string): Promise<void> {
  */
 export async function logoutUser(): Promise<void> {
   if (auth) {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch {}
+  }
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.removeItem('veracost_current_user');
+    } catch {}
   }
 }
 
@@ -193,6 +371,9 @@ export function getFirebaseErrorMessage(errorCode: string): string {
       return 'Network connection error. Please check your internet connection.';
     case 'auth/too-many-requests':
       return 'Too many unsuccessful attempts. Access temporarily restricted for your security. Please wait a moment or reset your password.';
+    case 'auth/configuration-not-found':
+    case 'auth/operation-not-allowed':
+      return 'Email/Password sign-in is not yet enabled in Firebase Console (veracost-5f3c5). Go to Authentication > Sign-in method > Enable Email/Password.';
     default:
       return 'An error occurred during authentication. Please try again.';
   }

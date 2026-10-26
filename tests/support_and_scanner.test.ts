@@ -27,8 +27,8 @@ describe('VeraCost Upgrade — Scanner, Visual Search, Support & AI Chatbot Test
       const dev = SUPPORT_CONFIG.leadDeveloper;
       expect(dev.name).toBe('Ronak Bairagi');
       expect(dev.phone).toBe('+919051905871');
-      // Intended support email updated to ronakbaidya83@gmail.com per user requirement
-      expect(dev.email).toBe('ronakbaidya83@gmail.com');
+      // Verified support email: ronakbairagi83@gmail.com (lowercase, no spaces)
+      expect(dev.email).toBe('ronakbairagi83@gmail.com');
       expect(dev.role).toContain('Lead Architect');
     });
 
@@ -96,7 +96,7 @@ describe('VeraCost Upgrade — Scanner, Visual Search, Support & AI Chatbot Test
       const resp = generateKnowledgeBaseAnswer('How can I contact support or the developer?');
       expect(resp.text).toContain('Ronak Bairagi');
       expect(resp.text).toContain('+91 90519 05871');
-      expect(resp.text).toContain('ronakbaidya83@gmail.com');
+      expect(resp.text).toContain('ronakbairagi83@gmail.com');
       expect(resp.suggestedAction?.actionTab).toBe('support');
     });
 
@@ -109,11 +109,11 @@ describe('VeraCost Upgrade — Scanner, Visual Search, Support & AI Chatbot Test
   });
 
   describe('Contact & Support Mailto and Gmail Compose Standards', () => {
-    it('creates pre-filled mailto URL addressed to ronakbaidya83@gmail.com with structured template', async () => {
+    it('creates pre-filled mailto URL addressed to ronakbairagi83@gmail.com with structured template', async () => {
       const { createSupportMailtoUrl } = await import('../src/config/support');
       const mailto = createSupportMailtoUrl();
 
-      expect(mailto).toContain('mailto:ronakbaidya83@gmail.com');
+      expect(mailto).toContain('mailto:ronakbairagi83@gmail.com');
       expect(mailto).toContain('subject=VeraCost%20Support%20Request');
       expect(mailto).toContain('Hello%20VeraCost%20Support%20Team');
       expect(mailto).toContain('Issue%20description%3A');
@@ -132,7 +132,7 @@ describe('VeraCost Upgrade — Scanner, Visual Search, Support & AI Chatbot Test
 
       expect(mailto).toContain(encodeURIComponent(customSubject));
       expect(mailto).toContain(encodeURIComponent(customDesc));
-      expect(mailto).toContain('mailto:ronakbaidya83@gmail.com');
+      expect(mailto).toContain('mailto:ronakbairagi83@gmail.com');
     });
 
     it('creates direct Gmail web compose URL with verified recipient and template', async () => {
@@ -140,7 +140,7 @@ describe('VeraCost Upgrade — Scanner, Visual Search, Support & AI Chatbot Test
       const gmailUrl = createGmailComposeUrl();
 
       expect(gmailUrl).toContain('https://mail.google.com/mail/?view=cm&fs=1');
-      expect(gmailUrl).toContain('to=ronakbaidya83%40gmail.com');
+      expect(gmailUrl).toContain('to=ronakbairagi83%40gmail.com');
       expect(gmailUrl).toContain('su=VeraCost%20Support%20Request');
       expect(gmailUrl).toContain('Hello%20VeraCost%20Support%20Team');
       expect(gmailUrl).toContain('Issue%20description%3A');
@@ -325,7 +325,7 @@ describe('VeraCost Upgrade — Scanner, Visual Search, Support & AI Chatbot Test
       const respSupport = generateClientAssistantResponse('How can I contact the developer?');
       expect(respSupport.text).toContain('Ronak Bairagi');
       expect(respSupport.text).toContain('+91 90519 05871');
-      expect(respSupport.text).toContain('ronakbaidya83@gmail.com');
+      expect(respSupport.text).toContain('ronakbairagi83@gmail.com');
       expect(respSupport.suggestedAction?.actionTab).toBe('support');
     });
   });

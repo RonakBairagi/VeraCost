@@ -123,7 +123,16 @@ export const App: React.FC = () => {
           setIsGuest(false);
         } else {
           setCurrentUser(null);
-          if (sessionStorage.getItem('veracost_guest_session') !== 'true') {
+          const cachedUser = typeof localStorage !== 'undefined' ? localStorage.getItem('veracost_current_user') : null;
+          if (cachedUser) {
+            try {
+              const parsed = JSON.parse(cachedUser);
+              setUserProfile(parsed);
+              setIsGuest(false);
+            } catch {
+              setUserProfile(null);
+            }
+          } else if (sessionStorage.getItem('veracost_guest_session') !== 'true') {
             setUserProfile(null);
           }
         }
@@ -190,6 +199,7 @@ export const App: React.FC = () => {
     setUserProfile(null);
     setIsGuest(false);
     try { sessionStorage.removeItem('veracost_guest_session'); } catch {}
+    try { localStorage.removeItem('veracost_current_user'); } catch {}
   };
 
   // Global listener for screenshot paste (Ctrl+V) and drag-and-drop from OS or other windows

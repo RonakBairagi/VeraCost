@@ -40,8 +40,8 @@ export const SUPPORT_CONFIG: {
     name: 'Ronak Bairagi',
     phone: '+919051905871',
     formattedPhone: '+91 90519 05871',
-    // Verified Support Contact Address (Updated to user-intended address: ronakbaidya83@gmail.com; previously configured as ronakbairagi83@gmail.com)
-    email: 'ronakbaidya83@gmail.com',
+    // Verified Support Contact Address: ronakbairagi83@gmail.com (no spaces, lowercase)
+    email: 'ronakbairagi83@gmail.com',
     role: 'Lead Architect & Full-Stack Developer',
     location: 'India',
     availability: 'Monday – Saturday, 9:00 AM – 7:00 PM IST',
