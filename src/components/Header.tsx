@@ -1,6 +1,7 @@
 import React from 'react';
-import { Layers, Sparkles, SlidersHorizontal, Bookmark, Settings2, PlusCircle, Sun, Moon, ShoppingBag, LifeBuoy, Scissors, MessageSquare } from 'lucide-react';
+import { Layers, Sparkles, SlidersHorizontal, Bookmark, Settings2, PlusCircle, Sun, Moon, ShoppingBag, LifeBuoy, Scissors, MessageSquare, LogOut, User as UserIcon } from 'lucide-react';
 import { BRAND_CONFIG, CurrencyConfig } from '../config/branding';
+import { UserProfileData } from '../config/firebase';
 
 interface HeaderProps {
   currentTab: 'landing' | 'shopping' | 'workspace' | 'saved' | 'support';
@@ -15,6 +16,8 @@ interface HeaderProps {
   onOpenNewComparison: () => void;
   onOpenScreenshotImport?: () => void;
   onToggleAssistant?: () => void;
+  userProfile?: UserProfileData | null;
+  onSignOut?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -30,6 +33,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNewComparison,
   onOpenScreenshotImport,
   onToggleAssistant,
+  userProfile,
+  onSignOut,
 }) => {
   return (
     <header className="app-header">
@@ -172,6 +177,82 @@ export const Header: React.FC<HeaderProps> = ({
               </>
             )}
           </button>
+
+          {/* User Profile & Sign Out */}
+          {userProfile && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                paddingLeft: '6px',
+                borderLeft: '1px solid var(--border-subtle)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  padding: '4px 10px',
+                  borderRadius: '20px',
+                  fontSize: '0.78rem',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border-subtle)',
+                }}
+                title={userProfile.email}
+              >
+                <div
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    backgroundColor: '#3b82f6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  {(userProfile.displayName || userProfile.email || 'U')[0].toUpperCase()}
+                </div>
+                <span
+                  style={{
+                    maxWidth: '100px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {userProfile.displayName || userProfile.email.split('@')[0]}
+                </span>
+              </div>
+
+              {onSignOut && (
+                <button
+                  onClick={onSignOut}
+                  title="Sign out of VeraCost"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '6px',
+                    transition: 'color 0.15s ease',
+                  }}
+                >
+                  <LogOut size={16} />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </header>

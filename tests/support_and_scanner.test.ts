@@ -274,4 +274,23 @@ describe('VeraCost Upgrade — Scanner, Visual Search, Support & AI Chatbot Test
       expect(resp2.text).toContain('mechanical keyboard');
     });
   });
+
+  describe('Firebase Authentication & Error Mapping', () => {
+    it('maps Firebase auth error codes to clear user-friendly guidance', async () => {
+      const { getFirebaseErrorMessage } = await import('../src/config/firebase');
+
+      expect(getFirebaseErrorMessage('auth/invalid-email')).toContain('improperly formatted');
+      expect(getFirebaseErrorMessage('auth/wrong-password')).toContain('Incorrect email or password');
+      expect(getFirebaseErrorMessage('auth/email-already-in-use')).toContain('already exists');
+      expect(getFirebaseErrorMessage('auth/weak-password')).toContain('at least 6 characters');
+      expect(getFirebaseErrorMessage('auth/too-many-requests')).toContain('temporarily restricted');
+      expect(getFirebaseErrorMessage('unknown-code')).toContain('An error occurred');
+    });
+
+    it('safely detects whether Firebase credentials are configured without throwing', async () => {
+      const { isFirebaseConfigured } = await import('../src/config/firebase');
+      const configured = isFirebaseConfigured();
+      expect(typeof configured).toBe('boolean');
+    });
+  });
 });

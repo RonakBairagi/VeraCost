@@ -14,11 +14,26 @@ import { SmartPriceFinder } from './components/shopping/SmartPriceFinder';
 import { ScreenshotImportModal } from './components/shopping/ScreenshotImportModal';
 import { SupportPage } from './components/SupportPage';
 import { VeraAssistantModal } from './components/chat/VeraAssistantModal';
+import { StartupScreen } from './components/startup/StartupScreen';
+import { AuthScreen } from './components/auth/AuthScreen';
+import { auth, logoutUser, UserProfileData, isFirebaseConfigured } from './config/firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { Bot, MessageSquare } from 'lucide-react';
 import { calculateComparison } from './engine/calculator';
 import { getSuggestionsForCategory, createCostItemFromSuggestion, inferProductCategory } from './engine/discovery';
 
 export const App: React.FC = () => {
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
+  const [isGuest, setIsGuest] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('veracost_guest_session') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   const [currentTab, setCurrentTab] = useState<'landing' | 'shopping' | 'workspace' | 'saved' | 'support'>('shopping');
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try {
@@ -89,6 +104,93 @@ export const App: React.FC = () => {
   useEffect(() => {
     checkServerConfig();
   }, []);
+
+  // Firebase Authentication State Listener
+  useEffect(() => {
+    let timer: any = null;
+
+    if (auth && isFirebaseConfigured()) {
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user) {
+          setCurrentUser(user);
+          setUserProfile({
+            uid: user.uid,
+            email: user.email || '',
+            displayName: user.displayName || user.email?.split('@')[0] || 'User',
+            createdAt: user.metadata.creationTime || new Date().toISOString(),
+            lastLoginAt: user.metadata.lastSignInTime || new Date().toISOString(),
+          });
+          setIsGuest(false);
+        } else {
+          setCurrentUser(null);
+          if (sessionStorage.getItem('veracost_guest_session') !== 'true') {
+            setUserProfile(null);
+          }
+        }
+        timer = setTimeout(() => setIsInitializing(false), 500);
+      });
+
+      return () => {
+        unsubscribe();
+        if (timer) clearTimeout(timer);
+      };
+    } else {
+      // Firebase not configured or Guest mode active
+      const savedGuest = sessionStorage.getItem('veracost_guest_session') === 'true';
+      if (savedGuest) {
+        setIsGuest(true);
+        setUserProfile({
+          uid: 'guest-session',
+          email: 'guest@veracost.app',
+          displayName: 'Guest Explorer',
+          createdAt: new Date().toISOString(),
+          lastLoginAt: new Date().toISOString(),
+        });
+      }
+      timer = setTimeout(() => setIsInitializing(false), 500);
+      return () => {
+        if (timer) clearTimeout(timer);
+      };
+    }
+  }, []);
+
+  const handleAuthenticated = (user: User | null, profile?: UserProfileData, guest?: boolean) => {
+    if (user) {
+      setCurrentUser(user);
+      setIsGuest(false);
+      setUserProfile(profile || {
+        uid: user.uid,
+        email: user.email || '',
+        displayName: user.displayName || 'User',
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+      });
+      try { sessionStorage.removeItem('veracost_guest_session'); } catch {}
+    } else if (guest) {
+      setIsGuest(true);
+      setCurrentUser(null);
+      setUserProfile(profile || {
+        uid: 'guest-session',
+        email: 'guest@veracost.app',
+        displayName: 'Guest Explorer',
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+      });
+      try { sessionStorage.setItem('veracost_guest_session', 'true'); } catch {}
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await logoutUser();
+    } catch (err) {
+      console.warn('[Firebase] Logout error:', err);
+    }
+    setCurrentUser(null);
+    setUserProfile(null);
+    setIsGuest(false);
+    try { sessionStorage.removeItem('veracost_guest_session'); } catch {}
+  };
 
   // Global listener for screenshot paste (Ctrl+V) and drag-and-drop from OS or other windows
   useEffect(() => {
@@ -244,6 +346,15 @@ export const App: React.FC = () => {
 
   const analysis = calculateComparison(project);
 
+  if (isInitializing) {
+    return <StartupScreen statusMessage="Initializing VeraCost platform…" />;
+  }
+
+  const isAuthenticated = Boolean(currentUser || isGuest);
+  if (!isAuthenticated) {
+    return <AuthScreen onAuthenticated={handleAuthenticated} />;
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <DynamicBackground theme={theme} />
@@ -261,6 +372,8 @@ export const App: React.FC = () => {
         onOpenNewComparison={() => setIsNewComparisonModalOpen(true)}
         onOpenScreenshotImport={() => setIsScreenshotModalOpen(true)}
         onToggleAssistant={() => setIsAssistantChatOpen((prev) => !prev)}
+        userProfile={userProfile}
+        onSignOut={handleSignOut}
       />
 
       <main style={{ flex: 1, position: 'relative', zIndex: 1 }}>

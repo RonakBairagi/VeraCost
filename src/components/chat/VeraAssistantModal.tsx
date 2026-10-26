@@ -389,17 +389,23 @@ export const VeraAssistantModal: React.FC<VeraAssistantModalProps> = ({
           },
         ]);
       } else {
-        throw new Error(`Chat API error (${resp.status})`);
+        const errorData = await resp.json().catch(() => ({}));
+        const errMsg = errorData.message || errorData.error || `Server responded with status ${resp.status}`;
+        throw new Error(errMsg);
       }
     } catch (err: any) {
       console.warn('[VeraAssistant] Network or API error:', err.message);
-      // Helpful error state with retry button, instead of a repeated static string!
+      const isOfflineOrNetwork = err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError');
+      const errDisplay = isOfflineOrNetwork
+        ? 'Unable to connect to assistant service. Please check your internet connection or verify the backend service is running.'
+        : `Assistant service returned: ${err.message}. Please click below to retry.`;
+
       setMessages((prev) => [
         ...prev,
         {
           id: `error-${Date.now()}`,
           role: 'assistant',
-          text: 'Unable to connect to assistant service. Please check your internet connection or click below to retry.',
+          text: errDisplay,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           isError: true,
           retryText: text,
