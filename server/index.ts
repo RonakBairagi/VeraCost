@@ -5,6 +5,7 @@ import { explainComparisonWithNemotron } from './nebiusClient';
 import { ComparisonAnalysisResult } from '../src/types/cost';
 import { searchRouter } from './searchRoutes';
 import { supportChatRouter } from './supportChat';
+import { voiceRouter } from './voiceRoutes';
 
 dotenv.config();
 
@@ -41,6 +42,10 @@ app.use('/search', searchRouter);
 // Support & Vera Assistant Chatbot Routes:
 app.use('/api/support', supportChatRouter);
 app.use('/support', supportChatRouter);
+
+// Voice AI & Speech Synthesis Routes:
+app.use('/api/voice', voiceRouter);
+app.use('/voice', voiceRouter);
 
 // Health Check
 const healthHandler = (req: Request, res: Response) => {

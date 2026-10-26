@@ -40,7 +40,8 @@ export const SUPPORT_CONFIG: {
     name: 'Ronak Bairagi',
     phone: '+919051905871',
     formattedPhone: '+91 90519 05871',
-    email: 'ronakbairagi83@gmail.com',
+    // Verified Support Contact Address (Updated to user-intended address: ronakbaidya83@gmail.com; previously configured as ronakbairagi83@gmail.com)
+    email: 'ronakbaidya83@gmail.com',
     role: 'Lead Architect & Full-Stack Developer',
     location: 'India',
     availability: 'Monday – Saturday, 9:00 AM – 7:00 PM IST',
@@ -171,4 +172,62 @@ Thank you.`;
 
   return `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
+
+/**
+ * Generates an official Gmail Web Compose URL pre-populating recipient, subject, and template
+ */
+export function createGmailComposeUrl(customSubject?: string, customDescription?: string): string {
+  const recipient = SUPPORT_CONFIG.leadDeveloper.email;
+  const subject = customSubject?.trim() || 'VeraCost Support Request';
+  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown';
+
+  const body = `Hello VeraCost Support Team,
+
+I need assistance with VeraCost.
+
+Issue description:
+${customDescription && customDescription.trim() ? customDescription.trim() : '[Please describe your question or issue here]'}
+
+Steps to reproduce:
+1. 
+2. 
+3. 
+
+Expected result:
+
+
+Actual result:
+
+
+Browser/device:
+${userAgent}
+
+Thank you.`;
+
+  return `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(recipient)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+/**
+ * Opens Gmail compose in a new tab with fallback to mailto
+ */
+export function openSupportEmailWorkflow(customSubject?: string, customDescription?: string): { success: boolean; mode: 'gmail' | 'mailto' } {
+  const gmailUrl = createGmailComposeUrl(customSubject, customDescription);
+  const mailtoUrl = createSupportMailtoUrl(customSubject, customDescription);
+
+  try {
+    const win = window.open(gmailUrl, '_blank', 'noopener,noreferrer');
+    if (win && !win.closed && typeof win.closed !== 'undefined') {
+      return { success: true, mode: 'gmail' };
+    }
+  } catch {}
+
+  // Fallback to mailto link if window.open was restricted
+  try {
+    window.location.href = mailtoUrl;
+    return { success: true, mode: 'mailto' };
+  } catch {
+    return { success: false, mode: 'mailto' };
+  }
+}
+
 

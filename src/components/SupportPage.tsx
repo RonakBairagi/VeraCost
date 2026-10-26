@@ -17,7 +17,14 @@ import {
   MapPin,
   Sparkles
 } from 'lucide-react';
-import { SUPPORT_CONFIG, FaqItem, TroubleshootingGuide, createSupportMailtoUrl } from '../config/support';
+import { 
+  SUPPORT_CONFIG, 
+  FaqItem, 
+  TroubleshootingGuide, 
+  createSupportMailtoUrl, 
+  createGmailComposeUrl, 
+  openSupportEmailWorkflow 
+} from '../config/support';
 
 interface SupportPageProps {
   onNavigateToShopping?: () => void;
@@ -37,6 +44,7 @@ export const SupportPage: React.FC<SupportPageProps> = ({
   const [senderEmail, setSenderEmail] = useState('');
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [submittedMode, setSubmittedMode] = useState<'gmail' | 'mailto'>('gmail');
 
   const dev = SUPPORT_CONFIG.leadDeveloper;
 
@@ -48,7 +56,7 @@ export const SupportPage: React.FC<SupportPageProps> = ({
     setOpenFaqId((prev) => (prev === id ? null : id));
   };
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleContactSubmit = (e: React.FormEvent, preferMode: 'gmail' | 'mailto' = 'gmail') => {
     e.preventDefault();
     setFormError(null);
 
@@ -62,14 +70,25 @@ export const SupportPage: React.FC<SupportPageProps> = ({
       return;
     }
 
-    // Generate pre-filled mailto link using official template
     const fullMessage = senderEmail 
       ? `${message.trim()}\n\nReply-To Email: ${senderEmail.trim()}`
       : message.trim();
-    const mailtoUrl = createSupportMailtoUrl(subject, fullMessage);
 
-    // Open user's configured email client
-    window.location.href = mailtoUrl;
+    if (preferMode === 'gmail') {
+      const gmailUrl = createGmailComposeUrl(subject, fullMessage);
+      const win = window.open(gmailUrl, '_blank', 'noopener,noreferrer');
+      if (!win || win.closed || typeof win.closed === 'undefined') {
+        // Fallback to mailto if popup blocked
+        window.location.href = createSupportMailtoUrl(subject, fullMessage);
+        setSubmittedMode('mailto');
+      } else {
+        setSubmittedMode('gmail');
+      }
+    } else {
+      window.location.href = createSupportMailtoUrl(subject, fullMessage);
+      setSubmittedMode('mailto');
+    }
+
     setFormSubmitted(true);
   };
 
@@ -184,44 +203,73 @@ export const SupportPage: React.FC<SupportPageProps> = ({
                 </div>
               </a>
 
-              {/* Email Action */}
-              <a
-                href={createSupportMailtoUrl()}
-                aria-label={`Email support at ${dev.email}`}
-                title="Open configured mail client with pre-filled support template"
+              {/* Email Action — Direct Gmail Compose with Mailto Fallback */}
+              <div
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
                   padding: '0.75rem 1rem',
                   borderRadius: 'var(--radius-md)',
                   background: 'rgba(59, 130, 246, 0.08)',
                   border: '1px solid rgba(59, 130, 246, 0.2)',
-                  color: 'var(--text-main)',
-                  textDecoration: 'none',
-                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
                 }}
               >
-                <Mail size={18} style={{ color: 'var(--blue-highlight, #3b82f6)' }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Official Support Email</div>
-                  <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--blue-highlight, #3b82f6)' }}>
-                    {dev.email}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <Mail size={18} style={{ color: 'var(--blue-highlight, #3b82f6)' }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Official Support Email</div>
+                    <a
+                      href={createGmailComposeUrl()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--blue-highlight, #3b82f6)', textDecoration: 'none' }}
+                      title="Open draft in Gmail"
+                    >
+                      {dev.email}
+                    </a>
                   </div>
                 </div>
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    padding: '0.2rem 0.5rem',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'rgba(59, 130, 246, 0.15)',
-                    color: 'var(--blue-highlight, #3b82f6)',
-                    fontWeight: 600,
-                  }}
-                >
-                  Email Support
-                </span>
-              </a>
+
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                  <a
+                    href={createGmailComposeUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-primary"
+                    style={{
+                      flex: 1,
+                      padding: '0.4rem 0.65rem',
+                      fontSize: '0.76rem',
+                      textAlign: 'center',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.35rem',
+                    }}
+                    title="Open prepared email in Gmail compose"
+                  >
+                    <ExternalLink size={12} /> Open in Gmail
+                  </a>
+                  <a
+                    href={createSupportMailtoUrl()}
+                    className="btn-secondary"
+                    style={{
+                      padding: '0.4rem 0.65rem',
+                      fontSize: '0.76rem',
+                      textAlign: 'center',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                    }}
+                    title="Open in your default mail app"
+                  >
+                    <Mail size={12} /> Mail App
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -274,13 +322,13 @@ export const SupportPage: React.FC<SupportPageProps> = ({
             >
               <CheckCircle2 size={36} style={{ color: 'var(--teal-bright)', margin: '0 auto 0.75rem' }} />
               <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
-                Email Draft Prepared in Your Mail Client
+                {submittedMode === 'gmail' ? 'Email Draft Prepared in Gmail' : 'Email Draft Prepared in Mail App'}
               </h4>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', lineHeight: 1.45 }}>
-                Your device's email application has been opened with your message pre-addressed to <strong>{dev.email}</strong>.
+                A pre-addressed support draft has been prepared for <strong>{dev.email}</strong> with your message details.
               </p>
               <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '1rem', lineHeight: 1.4 }}>
-                <em>Note: A mailto link creates a pre-filled draft in your mail app. Please click <strong>Send</strong> in your email client to dispatch your message.</em>
+                <em>Note: Opening the draft does not automatically dispatch the message. Please review and click <strong>Send</strong> inside Gmail or your mail app.</em>
               </p>
               <button
                 type="button"
@@ -296,7 +344,7 @@ export const SupportPage: React.FC<SupportPageProps> = ({
               </button>
             </div>
           ) : (
-            <form onSubmit={handleContactSubmit}>
+            <form onSubmit={(e) => handleContactSubmit(e, 'gmail')}>
               <div style={{ marginBottom: '0.85rem' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.35rem', color: 'var(--text-main)' }}>
                   Subject *
@@ -357,13 +405,24 @@ export const SupportPage: React.FC<SupportPageProps> = ({
                 </div>
               )}
 
-              <button
-                type="submit"
-                className="btn-primary"
-                style={{ width: '100%', padding: '0.7rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-              >
-                <Send size={15} /> Send Message to Lead Developer
-              </button>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ flex: 1, padding: '0.7rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                >
+                  <Send size={15} /> Open Draft in Gmail
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={(e) => handleContactSubmit(e, 'mailto')}
+                  style={{ padding: '0.7rem 1rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem' }}
+                  title="Open with default email app"
+                >
+                  <Mail size={15} /> Mail App
+                </button>
+              </div>
             </form>
           )}
         </div>

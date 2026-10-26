@@ -27,7 +27,8 @@ describe('VeraCost Upgrade — Scanner, Visual Search, Support & AI Chatbot Test
       const dev = SUPPORT_CONFIG.leadDeveloper;
       expect(dev.name).toBe('Ronak Bairagi');
       expect(dev.phone).toBe('+919051905871');
-      expect(dev.email).toBe('ronakbairagi83@gmail.com');
+      // Intended support email updated to ronakbaidya83@gmail.com per user requirement
+      expect(dev.email).toBe('ronakbaidya83@gmail.com');
       expect(dev.role).toContain('Lead Architect');
     });
 
@@ -95,7 +96,7 @@ describe('VeraCost Upgrade — Scanner, Visual Search, Support & AI Chatbot Test
       const resp = generateKnowledgeBaseAnswer('How can I contact support or the developer?');
       expect(resp.text).toContain('Ronak Bairagi');
       expect(resp.text).toContain('+91 90519 05871');
-      expect(resp.text).toContain('ronakbairagi83@gmail.com');
+      expect(resp.text).toContain('ronakbaidya83@gmail.com');
       expect(resp.suggestedAction?.actionTab).toBe('support');
     });
 
@@ -107,12 +108,12 @@ describe('VeraCost Upgrade — Scanner, Visual Search, Support & AI Chatbot Test
     });
   });
 
-  describe('Contact & Support Mailto Standards', () => {
-    it('creates pre-filled mailto URL addressed to ronakbairagi83@gmail.com with structured template', async () => {
+  describe('Contact & Support Mailto and Gmail Compose Standards', () => {
+    it('creates pre-filled mailto URL addressed to ronakbaidya83@gmail.com with structured template', async () => {
       const { createSupportMailtoUrl } = await import('../src/config/support');
       const mailto = createSupportMailtoUrl();
 
-      expect(mailto).toContain('mailto:ronakbairagi83@gmail.com');
+      expect(mailto).toContain('mailto:ronakbaidya83@gmail.com');
       expect(mailto).toContain('subject=VeraCost%20Support%20Request');
       expect(mailto).toContain('Hello%20VeraCost%20Support%20Team');
       expect(mailto).toContain('Issue%20description%3A');
@@ -131,7 +132,39 @@ describe('VeraCost Upgrade — Scanner, Visual Search, Support & AI Chatbot Test
 
       expect(mailto).toContain(encodeURIComponent(customSubject));
       expect(mailto).toContain(encodeURIComponent(customDesc));
-      expect(mailto).toContain('mailto:ronakbairagi83@gmail.com');
+      expect(mailto).toContain('mailto:ronakbaidya83@gmail.com');
+    });
+
+    it('creates direct Gmail web compose URL with verified recipient and template', async () => {
+      const { createGmailComposeUrl } = await import('../src/config/support');
+      const gmailUrl = createGmailComposeUrl();
+
+      expect(gmailUrl).toContain('https://mail.google.com/mail/?view=cm&fs=1');
+      expect(gmailUrl).toContain('to=ronakbaidya83%40gmail.com');
+      expect(gmailUrl).toContain('su=VeraCost%20Support%20Request');
+      expect(gmailUrl).toContain('Hello%20VeraCost%20Support%20Team');
+      expect(gmailUrl).toContain('Issue%20description%3A');
+      expect(gmailUrl).toContain('Steps%20to%20reproduce%3A');
+      expect(gmailUrl).toContain('Expected%20result%3A');
+      expect(gmailUrl).toContain('Actual%20result%3A');
+      expect(gmailUrl).toContain('Browser%2Fdevice%3A');
+      expect(gmailUrl).toContain('Thank%20you.');
+    });
+  });
+
+  describe('Voice Synthesis Text Sanitization', () => {
+    it('strips markdown, code blocks, and URLs to ensure natural TTS audio', async () => {
+      const { cleanTextForSpeech } = await import('../server/voiceRoutes');
+      
+      const raw = 'Check out `https://amazon.in/dp/B0CHX` for **iPhone 16**!\n\n```json\n{"mrp": 119900}\n```\n- Price: ₹1,19,900\n- Best deal!';
+      const cleaned = cleanTextForSpeech(raw);
+
+      expect(cleaned).not.toContain('```');
+      expect(cleaned).not.toContain('https://');
+      expect(cleaned).not.toContain('**');
+      expect(cleaned).toContain('Rs. 1,19,900');
+      expect(cleaned).toContain('iPhone 16');
+      expect(cleaned).toContain('Best deal!');
     });
   });
 
@@ -191,6 +224,54 @@ describe('VeraCost Upgrade — Scanner, Visual Search, Support & AI Chatbot Test
       expect(inferProductCategory('MacBook Pro M3')).toBe('electronics');
       expect(inferProductCategory('PlayStation 5')).toBe('gaming');
       expect(inferProductCategory('Samsung 253L Refrigerator')).toBe('appliances');
+    });
+  });
+
+  describe('Vera Dynamic & Contextual Assistant Pipeline', () => {
+    it('retrieves real verified pricing for catalog products without hallucinations', async () => {
+      const { generateContextualAssistantResponse } = await import('../server/supportChat');
+
+      const resp = generateContextualAssistantResponse('What is the lowest price for iPhone 16 Pro?');
+      expect(resp.text).toContain('iPhone 16 Pro');
+      expect(resp.text).toContain('Croma');
+      expect(resp.text).toContain('Lowest Estimated Checkout');
+      expect(resp.suggestedAction?.actionTab).toBe('shopping');
+    });
+
+    it('understands follow-up questions referencing products in conversation history', async () => {
+      const { generateContextualAssistantResponse } = await import('../server/supportChat');
+
+      const history = [
+        { role: 'user' as const, content: 'Can you tell me about the Sony WH-1000XM5 headphones?' },
+        { role: 'assistant' as const, content: 'Sony WH-1000XM5 is a flagship noise cancelling headphone.' },
+      ];
+
+      const resp = generateContextualAssistantResponse('How much does it cost at checkout?', history);
+      expect(resp.text).toContain('Sony WH-1000XM5');
+      expect(resp.text).toContain('Croma');
+      expect(resp.text).toContain('True TCO');
+    });
+
+    it('compares two products side-by-side with verified checkout costs', async () => {
+      const { generateContextualAssistantResponse } = await import('../server/supportChat');
+
+      const resp = generateContextualAssistantResponse('Compare iPhone 16 Pro vs Samsung Galaxy S24 Ultra');
+      expect(resp.text).toContain('iPhone 16 Pro');
+      expect(resp.text).toContain('Samsung Galaxy S24 Ultra');
+      expect(resp.text).toContain('Upfront price advantage');
+      expect(resp.text).toContain('3-year Total Cost of Ownership');
+      expect(resp.suggestedAction?.actionTab).toBe('workspace');
+    });
+
+    it('generates contextual fallback for arbitrary queries without repeating a static answer', async () => {
+      const { generateContextualAssistantResponse } = await import('../server/supportChat');
+
+      const resp1 = generateContextualAssistantResponse('Will solar panels save me money in Bangalore?');
+      const resp2 = generateContextualAssistantResponse('Is mechanical keyboard maintenance expensive?');
+
+      expect(resp1.text).not.toBe(resp2.text);
+      expect(resp1.text).toContain('solar panels');
+      expect(resp2.text).toContain('mechanical keyboard');
     });
   });
 });
