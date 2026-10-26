@@ -85,11 +85,11 @@ describe('VeraCost Upgrade — Scanner, Visual Search, Support & AI Chatbot Test
       expect(resp.suggestedAction?.actionTab).toBe('shopping');
     });
 
-    it('explains clipboard screenshot import with browser privacy safeguards', () => {
+    it('directs screenshot and image queries to Image Search and Google Lens', () => {
       const resp = generateKnowledgeBaseAnswer('How do I import a screenshot from clipboard?');
-      expect(resp.text).toContain('Ctrl + V');
-      expect(resp.text).toContain('Screenshot');
-      expect(resp.suggestedAction?.actionTab).toBe('screenshot');
+      expect(resp.text).toContain('Image Search');
+      expect(resp.text).toContain('Google Lens');
+      expect(resp.suggestedAction?.actionTab).toBe('shopping');
     });
 
     it('provides lead developer contact details when asked for support', () => {

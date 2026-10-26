@@ -26,6 +26,7 @@ export interface UserProfileData {
   email: string;
   displayName: string;
   phoneNumber?: string;
+  photoURL?: string;
   createdAt: string;
   lastLoginAt: string;
 }
@@ -82,6 +83,7 @@ interface LocalAccountRecord {
   email: string;
   displayName: string;
   phoneNumber?: string;
+  photoURL?: string;
   passwordHash: string;
   createdAt: string;
   lastLoginAt: string;
@@ -347,6 +349,151 @@ export async function logoutUser(): Promise<void> {
       localStorage.removeItem('veracost_current_user');
     } catch {}
   }
+}
+
+/**
+ * Update the user's profile data across Firebase Auth, Firestore, and local state
+ */
+export async function updateUserProfileData(
+  uid: string,
+  updates: Partial<Pick<UserProfileData, 'displayName' | 'phoneNumber' | 'photoURL'>>
+): Promise<UserProfileData> {
+  // 1. Get existing profile from localStorage or create baseline
+  let currentProfile: UserProfileData = {
+    uid,
+    email: '',
+    displayName: 'VeraCost User',
+    createdAt: new Date().toISOString(),
+    lastLoginAt: new Date().toISOString(),
+  };
+
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('veracost_current_user');
+      if (stored) {
+        currentProfile = { ...currentProfile, ...JSON.parse(stored) };
+      }
+    } catch {}
+  }
+
+  // 2. Merge updates
+  const updatedProfile: UserProfileData = {
+    ...currentProfile,
+    displayName: updates.displayName !== undefined ? updates.displayName.trim() : currentProfile.displayName,
+    phoneNumber: updates.phoneNumber !== undefined ? updates.phoneNumber.trim() || undefined : currentProfile.phoneNumber,
+    photoURL: updates.photoURL !== undefined ? updates.photoURL : currentProfile.photoURL,
+  };
+
+  // 3. Update Firebase Auth user if active
+  if (auth && auth.currentUser) {
+    try {
+      await updateProfile(auth.currentUser, {
+        displayName: updatedProfile.displayName,
+        photoURL: updatedProfile.photoURL || null,
+      });
+    } catch (authErr) {
+      console.warn('[Firebase] Auth profile update optional sync:', authErr);
+    }
+  }
+
+  // 4. Update Firestore if database is configured
+  if (db && uid) {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await setDoc(userRef, {
+        displayName: updatedProfile.displayName,
+        phoneNumber: updatedProfile.phoneNumber || null,
+        photoURL: updatedProfile.photoURL || null,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+    } catch (dbErr) {
+      console.warn('[Firebase] Firestore profile update optional sync:', dbErr);
+    }
+  }
+
+  // 5. Update local accounts store if running in resilient mode
+  const accounts = getLocalAccounts();
+  const accIndex = accounts.findIndex((a) => a.uid === uid || a.email.toLowerCase() === updatedProfile.email.toLowerCase());
+  if (accIndex >= 0) {
+    accounts[accIndex].displayName = updatedProfile.displayName;
+    accounts[accIndex].phoneNumber = updatedProfile.phoneNumber;
+    accounts[accIndex].photoURL = updatedProfile.photoURL;
+    saveLocalAccounts(accounts);
+  }
+
+  // 6. Update current user in localStorage for instant reactive display
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem('veracost_current_user', JSON.stringify(updatedProfile));
+    } catch {}
+  }
+
+  return updatedProfile;
+}
+
+/**
+ * Validate and compress a user-selected profile image to a lightweight WebP/JPEG data URL
+ */
+export async function compressProfileImage(file: File, maxDimension = 320, quality = 0.85): Promise<string> {
+  // Validate file type
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Please select a valid image file (JPEG, PNG, WEBP, or GIF).');
+  }
+
+  // Validate size (max 5MB raw)
+  const MAX_RAW_BYTES = 5 * 1024 * 1024;
+  if (file.size > MAX_RAW_BYTES) {
+    throw new Error('Image file is too large. Please select an image under 5MB.');
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Failed to read image file.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Failed to load image format.'));
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        // Calculate aspect-ratio preserving dimensions
+        if (width > height) {
+          if (width > maxDimension) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          }
+        } else {
+          if (height > maxDimension) {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas rendering context not supported.'));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Try webp first, fallback to jpeg
+        try {
+          const dataUrl = canvas.toDataURL('image/webp', quality);
+          resolve(dataUrl);
+        } catch {
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(dataUrl);
+        }
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 /**

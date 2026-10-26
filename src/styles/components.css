@@ -802,15 +802,49 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* Responsive adjustments */
+/* ========================================================
+   RESPONSIVE DESIGN SYSTEM & VIEWPORT BREAKPOINTS
+   Ensures zero horizontal overflow from 360px to 4K displays
+   ======================================================== */
+
+@keyframes fadeInSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.profile-menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="light"] .profile-menu-item:hover {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Tablet & Smaller Laptop Breakpoint (<= 1080px) */
+@media (max-width: 1080px) {
+  .desktop-nav {
+    display: none !important;
+  }
+  .mobile-menu-toggle {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+  .header-inner {
+    gap: 0.75rem;
+  }
+}
+
+/* Mobile & Small Tablet Breakpoint (<= 768px) */
 @media (max-width: 768px) {
   .header-inner {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
-  }
-  .nav-links {
-    justify-content: center;
+    padding: 0.2rem 0;
   }
   .champion-banner {
     flex-direction: column;
@@ -818,6 +852,49 @@
   }
   .options-grid {
     grid-template-columns: 1fr;
+  }
+  .brand-tagline {
+    display: none;
+  }
+}
+
+/* Compact Mobile Breakpoint (<= 540px) */
+@media (max-width: 540px) {
+  .header-actions {
+    gap: 6px;
+  }
+  .currency-select {
+    padding: 0.35rem 0.45rem;
+    font-size: 0.75rem;
+  }
+  .new-comparison-btn {
+    padding: 0.4rem 0.65rem;
+  }
+  .profile-pill-btn {
+    padding: 3px 6px 3px 3px;
+  }
+  .profile-pill-btn span {
+    max-width: 70px;
+    font-size: 0.75rem;
+  }
+  .container {
+    padding: 0 0.85rem;
+  }
+}
+
+/* Ultra-Compact Mobile Breakpoint (<= 390px, e.g. iPhone SE, Pixel 5) */
+@media (max-width: 390px) {
+  .brand-badge {
+    display: none;
+  }
+  .profile-pill-btn span {
+    display: none;
+  }
+  .new-comparison-btn .btn-label {
+    display: none;
+  }
+  .new-comparison-btn {
+    padding: 0.4rem 0.5rem;
   }
 }
 

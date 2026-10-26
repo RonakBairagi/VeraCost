@@ -30,7 +30,7 @@ interface ChatMessage {
   timestamp: string;
   suggestedAction?: {
     label: string;
-    actionTab?: 'landing' | 'shopping' | 'workspace' | 'saved' | 'support' | 'screenshot';
+    actionTab?: 'landing' | 'shopping' | 'workspace' | 'saved' | 'support';
   };
   isError?: boolean;
   retryText?: string;
@@ -40,7 +40,6 @@ interface VeraAssistantModalProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigateTab: (tab: 'landing' | 'shopping' | 'workspace' | 'saved' | 'support') => void;
-  onOpenScreenshotImport?: () => void;
 }
 
 const STARTER_QUESTIONS = [
@@ -50,7 +49,6 @@ const STARTER_QUESTIONS = [
   'How do I scan a packaging barcode?',
   'How can I search using a product image or Google Lens?',
   'Which Indian retailer has the lowest verified price?',
-  'How do I import a screenshot with Ctrl+V?',
   'How can I contact Lead Developer Ronak?',
 ];
 
@@ -58,7 +56,6 @@ export const VeraAssistantModal: React.FC<VeraAssistantModalProps> = ({
   isOpen,
   onClose,
   onNavigateTab,
-  onOpenScreenshotImport,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     try {
@@ -445,11 +442,6 @@ export const VeraAssistantModal: React.FC<VeraAssistantModalProps> = ({
 
   const handleActionClick = (actionTab?: string) => {
     if (!actionTab) return;
-    if (actionTab === 'screenshot' && onOpenScreenshotImport) {
-      onOpenScreenshotImport();
-      onClose();
-      return;
-    }
     if (
       actionTab === 'landing' ||
       actionTab === 'shopping' ||

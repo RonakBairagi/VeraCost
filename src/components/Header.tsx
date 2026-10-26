@@ -1,11 +1,32 @@
-import React from 'react';
-import { Layers, Sparkles, SlidersHorizontal, Bookmark, Settings2, PlusCircle, Sun, Moon, ShoppingBag, LifeBuoy, Scissors, MessageSquare, LogOut, User as UserIcon } from 'lucide-react';
+import React, { useState } from 'react';
+import { 
+  Layers, 
+  Sparkles, 
+  SlidersHorizontal, 
+  Bookmark, 
+  Settings2, 
+  PlusCircle, 
+  Sun, 
+  Moon, 
+  ShoppingBag, 
+  LifeBuoy, 
+  MessageSquare, 
+  LogOut, 
+  User as UserIcon, 
+  ChevronDown, 
+  LayoutDashboard,
+  Menu,
+  X
+} from 'lucide-react';
 import { BRAND_CONFIG, CurrencyConfig } from '../config/branding';
 import { UserProfileData } from '../config/firebase';
+import { ProfileDropdown } from './profile/ProfileDropdown';
+
+export type NavTabType = 'landing' | 'shopping' | 'workspace' | 'saved' | 'support' | 'dashboard';
 
 interface HeaderProps {
-  currentTab: 'landing' | 'shopping' | 'workspace' | 'saved' | 'support';
-  setCurrentTab: (tab: 'landing' | 'shopping' | 'workspace' | 'saved' | 'support') => void;
+  currentTab: NavTabType;
+  setCurrentTab: (tab: NavTabType) => void;
   currency: string;
   setCurrency: (c: string) => void;
   isAiLive: boolean;
@@ -14,7 +35,7 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onOpenSavedModal: () => void;
   onOpenNewComparison: () => void;
-  onOpenScreenshotImport?: () => void;
+  onOpenProfile: () => void;
   onToggleAssistant?: () => void;
   userProfile?: UserProfileData | null;
   onSignOut?: () => void;
@@ -31,105 +52,115 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onOpenSavedModal,
   onOpenNewComparison,
-  onOpenScreenshotImport,
+  onOpenProfile,
   onToggleAssistant,
   userProfile,
   onSignOut,
 }) => {
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const initial = userProfile?.displayName
+    ? userProfile.displayName.trim().charAt(0).toUpperCase()
+    : userProfile?.email
+    ? userProfile.email.charAt(0).toUpperCase()
+    : 'U';
+
+  const truncatedName = userProfile?.displayName
+    ? userProfile.displayName.split(' ')[0]
+    : userProfile?.email
+    ? userProfile.email.split('@')[0]
+    : 'Account';
+
   return (
-    <header className="app-header">
-      <div className="container header-inner">
-        {/* Brand identity */}
-        <div className="brand-wrapper" onClick={() => setCurrentTab('landing')}>
+    <header className="app-header" style={{ position: 'sticky', top: 0, zIndex: 100 }}>
+      <div className="container header-inner" style={{ position: 'relative' }}>
+        {/* Left: Brand Identity */}
+        <div 
+          className="brand-wrapper" 
+          onClick={() => {
+            setCurrentTab('landing');
+            setIsMobileMenuOpen(false);
+          }}
+          style={{ cursor: 'pointer', flexShrink: 0 }}
+        >
           <div className="brand-icon-box">
             <Layers size={22} />
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div className="brand-text-block">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <span className="brand-title">{BRAND_CONFIG.name}</span>
               <span className="brand-badge">TCO Engine</span>
             </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+            <div className="brand-tagline" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
               {BRAND_CONFIG.tagline}
             </div>
           </div>
         </div>
 
-        {/* Navigation tabs */}
-        <nav className="nav-links">
+        {/* Center: Desktop Navigation Links */}
+        <nav className="nav-links desktop-nav">
           <button
+            type="button"
             className={`nav-tab-btn ${currentTab === 'landing' ? 'active' : ''}`}
             onClick={() => setCurrentTab('landing')}
           >
             Overview
           </button>
           <button
+            type="button"
             className={`nav-tab-btn ${currentTab === 'shopping' ? 'active' : ''}`}
             onClick={() => setCurrentTab('shopping')}
           >
             <ShoppingBag size={15} />
-            Smart Price Finder
+            <span>Price Finder</span>
           </button>
           <button
+            type="button"
             className={`nav-tab-btn ${currentTab === 'workspace' ? 'active' : ''}`}
             onClick={() => setCurrentTab('workspace')}
           >
             <SlidersHorizontal size={15} />
-            Simulator Workspace
+            <span>Simulator</span>
           </button>
           <button
+            type="button"
+            className={`nav-tab-btn ${currentTab === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setCurrentTab('dashboard')}
+          >
+            <LayoutDashboard size={15} />
+            <span>Dashboard</span>
+          </button>
+          <button
+            type="button"
             className={`nav-tab-btn ${currentTab === 'saved' ? 'active' : ''}`}
             onClick={onOpenSavedModal}
           >
             <Bookmark size={15} />
-            Saved & Benchmarks
+            <span>Saved</span>
           </button>
           <button
+            type="button"
             className={`nav-tab-btn ${currentTab === 'support' ? 'active' : ''}`}
             onClick={() => setCurrentTab('support')}
           >
             <LifeBuoy size={15} />
-            Contact & Support
+            <span>Support</span>
           </button>
         </nav>
 
-        {/* Header Actions */}
-        <div className="header-actions">
-          {/* Screenshot Import Action */}
-          {onOpenScreenshotImport && (
-            <button
-              className="btn-secondary"
-              onClick={onOpenScreenshotImport}
-              style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-              title="Import product screenshot via clipboard paste (Ctrl+V) or upload"
-            >
-              <Scissors size={14} />
-              <span>Screenshot Import</span>
-            </button>
-          )}
-
-          {/* Vera Assistant Chat Trigger */}
-          {onToggleAssistant && (
-            <button
-              className="btn-secondary"
-              onClick={onToggleAssistant}
-              style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-              title="Chat with Vera Assistant"
-            >
-              <MessageSquare size={14} style={{ color: 'var(--teal-bright)' }} />
-              <span>Vera Assistant</span>
-            </button>
-          )}
-
-          {/* New Custom Comparison Button */}
+        {/* Right: Actions Cluster */}
+        <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          {/* New Custom Comparison CTA */}
           <button
-            className="btn-primary"
+            type="button"
+            className="btn-primary new-comparison-btn"
             onClick={onOpenNewComparison}
-            style={{ padding: '0.4rem 0.85rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
-            title="Create a custom comparison from scratch without preloaded data"
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+            title="Create a custom comparison from scratch"
           >
-            <PlusCircle size={14} />
-            New Custom Comparison
+            <PlusCircle size={15} />
+            <span className="btn-label">+ Compare</span>
           </button>
 
           {/* Currency Switcher */}
@@ -137,124 +168,219 @@ export const Header: React.FC<HeaderProps> = ({
             className="currency-select"
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
-            title="Select Base Currency"
+            title="Select Currency"
+            style={{ padding: '0.4rem 0.6rem', fontSize: '0.82rem', borderRadius: '8px' }}
           >
             {BRAND_CONFIG.currencies.map((curr: CurrencyConfig) => (
               <option key={curr.code} value={curr.code}>
-                {curr.label}
+                {curr.symbol} {curr.code}
               </option>
             ))}
           </select>
 
-          {/* AI Status Pill */}
-          <button
-            className="ai-status-pill"
-            onClick={onOpenSettings}
-            title="Configure NVIDIA Nemotron / Nebius Token Factory connection"
-          >
-            <span className={`status-dot ${isAiLive ? 'live' : 'mock'}`} />
-            <Sparkles size={13} style={{ color: isAiLive ? 'var(--teal-bright)' : 'var(--amber-warning)' }} />
-            <span>{isAiLive ? 'Nebius Nemotron (Live)' : 'Nemotron (Mock)'}</span>
-            <Settings2 size={13} style={{ marginLeft: 2, color: 'var(--text-muted)' }} />
-          </button>
-
-          {/* Theme Switcher (Dark / Light Mode) */}
-          <button
-            className="theme-toggle-btn"
-            onClick={onToggleTheme}
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            aria-label="Toggle dark/light theme"
-          >
-            {theme === 'dark' ? (
-              <>
-                <Sun size={15} className="theme-icon sun" />
-                <span>Light</span>
-              </>
-            ) : (
-              <>
-                <Moon size={15} className="theme-icon moon" />
-                <span>Dark</span>
-              </>
-            )}
-          </button>
-
-          {/* User Profile & Sign Out */}
+          {/* User Profile Control & Dropdown */}
           {userProfile && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                paddingLeft: '6px',
-                borderLeft: '1px solid var(--border-subtle)',
-              }}
-            >
-              <div
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                aria-expanded={isProfileMenuOpen}
+                aria-haspopup="true"
+                aria-label="User Account Menu"
+                className="profile-pill-btn"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '8px',
                   backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  padding: '4px 10px',
-                  borderRadius: '20px',
-                  fontSize: '0.78rem',
-                  color: 'var(--text-secondary)',
-                  border: '1px solid var(--border-subtle)',
+                  border: isProfileMenuOpen ? '1px solid #3b82f6' : '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
+                  borderRadius: '24px',
+                  padding: '4px 10px 4px 5px',
+                  cursor: 'pointer',
+                  color: 'var(--text-main, #ffffff)',
+                  transition: 'all 0.15s ease',
+                  outline: 'none',
                 }}
-                title={userProfile.email}
               >
+                {/* Avatar / Photo */}
                 <div
                   style={{
-                    width: '18px',
-                    height: '18px',
+                    width: '26px',
+                    height: '26px',
                     borderRadius: '50%',
-                    backgroundColor: '#3b82f6',
+                    background: 'linear-gradient(135deg, #2563eb, #10b981)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#fff',
-                    fontSize: '10px',
+                    color: '#ffffff',
+                    fontSize: '11px',
                     fontWeight: 'bold',
+                    flexShrink: 0,
+                    overflow: 'hidden',
                   }}
                 >
-                  {(userProfile.displayName || userProfile.email || 'U')[0].toUpperCase()}
+                  {userProfile.photoURL ? (
+                    <img
+                      src={userProfile.photoURL}
+                      alt={truncatedName}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <span>{initial}</span>
+                  )}
                 </div>
+
+                {/* Truncated Name */}
                 <span
                   style={{
                     maxWidth: '100px',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
+                    fontSize: '0.82rem',
+                    fontWeight: '600',
                   }}
                 >
-                  {userProfile.displayName || userProfile.email.split('@')[0]}
+                  {truncatedName}
                 </span>
-              </div>
 
-              {onSignOut && (
-                <button
-                  onClick={onSignOut}
-                  title="Sign out of VeraCost"
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                    padding: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: '6px',
-                    transition: 'color 0.15s ease',
-                  }}
-                >
-                  <LogOut size={16} />
-                </button>
-              )}
+                <ChevronDown 
+                  size={14} 
+                  style={{ 
+                    color: 'var(--text-muted, #94a3b8)', 
+                    transition: 'transform 0.15s ease',
+                    transform: isProfileMenuOpen ? 'rotate(180deg)' : 'none',
+                  }} 
+                />
+              </button>
+
+              {/* Profile Dropdown Component */}
+              <ProfileDropdown
+                isOpen={isProfileMenuOpen}
+                onClose={() => setIsProfileMenuOpen(false)}
+                userProfile={userProfile}
+                onOpenProfile={onOpenProfile}
+                onOpenDashboard={() => setCurrentTab('dashboard')}
+                onOpenSettings={onOpenSettings}
+                onOpenSavedModal={onOpenSavedModal}
+                onNavigateToWorkspace={() => setCurrentTab('workspace')}
+                onOpenSupport={() => setCurrentTab('support')}
+                onSignOut={() => {
+                  if (onSignOut) onSignOut();
+                }}
+                theme={theme}
+                onToggleTheme={onToggleTheme}
+              />
             </div>
           )}
+
+          {/* Mobile Hamburger Toggle */}
+          <button
+            type="button"
+            className="mobile-menu-toggle"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Toggle navigation menu"
+            style={{
+              display: 'none',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
+              borderRadius: '8px',
+              padding: '6px',
+              color: 'var(--text-main, #ffffff)',
+              cursor: 'pointer',
+            }}
+          >
+            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Navigation Drawer */}
+      {isMobileMenuOpen && (
+        <div 
+          className="mobile-nav-drawer"
+          style={{
+            borderTop: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
+            backgroundColor: 'var(--bg-card, #0f172a)',
+            padding: '12px 16px 16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          }}
+        >
+          <button
+            type="button"
+            className={`nav-tab-btn ${currentTab === 'landing' ? 'active' : ''}`}
+            onClick={() => {
+              setCurrentTab('landing');
+              setIsMobileMenuOpen(false);
+            }}
+            style={{ width: '100%', justifyContent: 'flex-start', padding: '10px 14px' }}
+          >
+            Overview
+          </button>
+          <button
+            type="button"
+            className={`nav-tab-btn ${currentTab === 'shopping' ? 'active' : ''}`}
+            onClick={() => {
+              setCurrentTab('shopping');
+              setIsMobileMenuOpen(false);
+            }}
+            style={{ width: '100%', justifyContent: 'flex-start', padding: '10px 14px' }}
+          >
+            <ShoppingBag size={16} />
+            <span>Smart Price Finder</span>
+          </button>
+          <button
+            type="button"
+            className={`nav-tab-btn ${currentTab === 'workspace' ? 'active' : ''}`}
+            onClick={() => {
+              setCurrentTab('workspace');
+              setIsMobileMenuOpen(false);
+            }}
+            style={{ width: '100%', justifyContent: 'flex-start', padding: '10px 14px' }}
+          >
+            <SlidersHorizontal size={16} />
+            <span>Simulator Workspace</span>
+          </button>
+          <button
+            type="button"
+            className={`nav-tab-btn ${currentTab === 'dashboard' ? 'active' : ''}`}
+            onClick={() => {
+              setCurrentTab('dashboard');
+              setIsMobileMenuOpen(false);
+            }}
+            style={{ width: '100%', justifyContent: 'flex-start', padding: '10px 14px' }}
+          >
+            <LayoutDashboard size={16} />
+            <span>Dashboard</span>
+          </button>
+          <button
+            type="button"
+            className={`nav-tab-btn ${currentTab === 'saved' ? 'active' : ''}`}
+            onClick={() => {
+              onOpenSavedModal();
+              setIsMobileMenuOpen(false);
+            }}
+            style={{ width: '100%', justifyContent: 'flex-start', padding: '10px 14px' }}
+          >
+            <Bookmark size={16} />
+            <span>Saved & Benchmarks</span>
+          </button>
+          <button
+            type="button"
+            className={`nav-tab-btn ${currentTab === 'support' ? 'active' : ''}`}
+            onClick={() => {
+              setCurrentTab('support');
+              setIsMobileMenuOpen(false);
+            }}
+            style={{ width: '100%', justifyContent: 'flex-start', padding: '10px 14px' }}
+          >
+            <LifeBuoy size={16} />
+            <span>Contact & Support</span>
+          </button>
+        </div>
+      )}
     </header>
   );
 };

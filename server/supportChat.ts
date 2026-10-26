@@ -16,7 +16,7 @@ export interface ChatMessage {
   timestamp?: string;
   suggestedAction?: {
     label: string;
-    actionTab?: 'landing' | 'shopping' | 'workspace' | 'saved' | 'support' | 'screenshot';
+    actionTab?: 'landing' | 'shopping' | 'workspace' | 'saved' | 'support';
     externalUrl?: string;
   };
 }
@@ -32,7 +32,6 @@ Your Core Capabilities & Guidelines:
    - Barcode Scanning: Reads retail EAN-13, EAN-8, UPC-A, Code 128 packaging codes. Reading a barcode and finding product information in databases are separate operations.
    - QR Scanning: Decodes URLs and SKU text. Product URLs can be parsed to extract titles; arbitrary links display security warnings.
    - Image Search: Uses Google Cloud Vision, multimodal AI, or client-side detection. If multiple objects exist, users can choose candidate objects or search with Google Lens.
-   - Screenshot Import: Allows clipboard paste (Ctrl+V) or file upload. Explain honestly that web browsers cannot automatically spy on operating system shortcut keys.
 3. Retailers Supported: Amazon India, Flipkart, Croma, Reliance Digital, Vijay Sales, Tata CLiQ, Apple Store, Samsung India.
 4. Support & Lead Developer:
    - Lead Architect: ${dev.name}
@@ -250,7 +249,7 @@ export function generateContextualAssistantResponse(
   text: string;
   suggestedAction?: {
     label: string;
-    actionTab?: 'landing' | 'shopping' | 'workspace' | 'saved' | 'support' | 'screenshot';
+    actionTab?: 'landing' | 'shopping' | 'workspace' | 'saved' | 'support';
   };
 } {
   const lower = (query || '').toLowerCase().trim();
@@ -312,7 +311,7 @@ export function generateContextualAssistantResponse(
   // 2. Greetings, Introductions & Identity
   if (/^(hi|hello|hey|greetings|good morning|good afternoon|good evening|namaste)\b/i.test(lower) || /who are you|what is veracost|what can you do|about veracost/i.test(lower)) {
     return {
-      text: `Hello! I am **Vera Assistant**, your AI shopping and financial guide for **VeraCost**.\n\nVeraCost helps you look beyond misleading upfront prices to uncover the **True Total Cost of Ownership (TCO)** for tech, appliances, and vehicles. Here is what I can do for you:\n\n1. **Price & Deal Checks**: Check verified live offers across Amazon India, Flipkart, Croma, and Reliance Digital.\n2. **TCO Cost Audits**: Calculate setup accessories, recurring subscriptions, maintenance, and resale recovery value over 3–5 years.\n3. **Scanning & Visual Search**: Guide you on scanning packaging barcodes, QR codes, or pasting screenshots (Ctrl+V).\n4. **Smart Comparisons**: Compare 2 or 3 product alternatives side-by-side.\n\nWhat product or question would you like to explore?`,
+      text: `Hello! I am **Vera Assistant**, your AI shopping and financial guide for **VeraCost**.\n\nVeraCost helps you look beyond misleading upfront prices to uncover the **True Total Cost of Ownership (TCO)** for tech, appliances, and vehicles. Here is what I can do for you:\n\n1. **Price & Deal Checks**: Check verified live offers across Amazon India, Flipkart, Croma, and Reliance Digital.\n2. **TCO Cost Audits**: Calculate setup accessories, recurring subscriptions, maintenance, and resale recovery value over 3–5 years.\n3. **Scanning & Visual Search**: Guide you on scanning packaging barcodes, QR codes, or product photos with Google Lens.\n4. **Smart Comparisons**: Compare 2 or 3 product alternatives side-by-side.\n\nWhat product or question would you like to explore?`,
       suggestedAction: { label: 'Explore Smart Price Finder', actionTab: 'shopping' },
     };
   }
@@ -373,11 +372,11 @@ Would you like to try the QR scanner?`,
     };
   }
 
-  // 7. Screenshot Import (Ctrl+V)
+  // 7. Visual Search Routing for Screenshots or Photos
   if (/screenshot|clipboard|ctrl\+v|paste screenshot|print screen|snip/i.test(lower)) {
     return {
-      text: `To import a product screenshot in 1 second:\n\n1. Press **Win + Shift + S** (Windows) or **Cmd + Shift + 4** (Mac) to capture any product deal.\n2. Return to VeraCost and press **Ctrl + V** anywhere on the page.\n3. VeraCost immediately detects the screenshot and prompts: *"Screenshot detected. Would you like VeraCost to identify the product and compare its price?"*\n4. Visible text, brand, model, and prices are extracted with zero fabricated information.`,
-      suggestedAction: { label: 'Open Screenshot Import', actionTab: 'screenshot' },
+      text: `VeraCost utilizes direct **Product Image Search** and **Google Lens** for visual comparison. You can click "Image Search" in Smart Price Finder to upload any product image or photograph and view verified live offers across retailers.`,
+      suggestedAction: { label: 'Open Image Search', actionTab: 'shopping' },
     };
   }
 
@@ -399,7 +398,7 @@ Would you like to try the QR scanner?`,
 
   // 10. General Decision Support (Contextual Fallback)
   return {
-    text: `Regarding "${query.slice(0, 80)}":\n\nVeraCost helps you evaluate this purchase by comparing verified retailer prices across Amazon, Flipkart, and Croma, alongside a 3-year Total Cost of Ownership breakdown.\n\nYou can enter the specific model name in **Smart Price Finder**, paste a product screenshot (<kbd>Ctrl+V</kbd>), or open our **Simulator Workspace** to model setup and recurring expenses.`,
+    text: `Regarding "${query.slice(0, 80)}":\n\nVeraCost helps you evaluate this purchase by comparing verified retailer prices across Amazon, Flipkart, and Croma, alongside a 3-year Total Cost of Ownership breakdown.\n\nYou can enter the specific model name in **Smart Price Finder** or open our **Simulator Workspace** to model setup and recurring expenses.`,
     suggestedAction: { label: 'Search in Smart Price Finder', actionTab: 'shopping' },
   };
 }
@@ -411,7 +410,7 @@ export function generateKnowledgeBaseAnswer(query: string): {
   text: string;
   suggestedAction?: {
     label: string;
-    actionTab?: 'landing' | 'shopping' | 'workspace' | 'saved' | 'support' | 'screenshot';
+    actionTab?: 'landing' | 'shopping' | 'workspace' | 'saved' | 'support';
   };
 } {
   return generateContextualAssistantResponse(query, []);

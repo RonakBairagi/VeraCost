@@ -8,7 +8,7 @@ export interface AssistantEngineResult {
   text: string;
   suggestedAction?: {
     label: string;
-    actionTab?: 'landing' | 'shopping' | 'workspace' | 'saved' | 'support' | 'screenshot';
+    actionTab?: 'landing' | 'shopping' | 'workspace' | 'saved' | 'support';
     externalUrl?: string;
   };
   provider: string;
@@ -144,7 +144,7 @@ export function generateClientAssistantResponse(
     /who are you|what is veracost|what can you do|about veracost/i.test(lower)
   ) {
     return {
-      text: `Hello! I am **Vera Assistant**, your official AI shopping and cost-analysis assistant for **VeraCost**.\n\nVeraCost helps you look beyond misleading upfront prices to uncover the **True Total Cost of Ownership (TCO)** for tech, appliances, and vehicles. Here is what I can do for you:\n\n1. **Price & Deal Checks**: Check verified live offers across Amazon India, Flipkart, Croma, and Reliance Digital.\n2. **TCO Cost Audits**: Calculate setup accessories, recurring subscriptions, maintenance, and resale recovery value over 3–5 years.\n3. **Scanning & Visual Search**: Guide you on scanning packaging barcodes, QR codes, or pasting screenshots (<kbd>Ctrl+V</kbd>).\n4. **Smart Comparisons**: Compare 2 or 3 product alternatives side-by-side.\n\nWhat product or question would you like to explore?`,
+      text: `Hello! I am **Vera Assistant**, your official AI shopping and cost-analysis assistant for **VeraCost**.\n\nVeraCost helps you look beyond misleading upfront prices to uncover the **True Total Cost of Ownership (TCO)** for tech, appliances, and vehicles. Here is what I can do for you:\n\n1. **Price & Deal Checks**: Check verified live offers across Amazon India, Flipkart, Croma, and Reliance Digital.\n2. **TCO Cost Audits**: Calculate setup accessories, recurring subscriptions, maintenance, and resale recovery value over 3–5 years.\n3. **Scanning & Visual Search**: Guide you on scanning packaging barcodes, QR codes, or product photos with Google Lens.\n4. **Smart Comparisons**: Compare 2 or 3 product alternatives side-by-side.\n\nWhat product or question would you like to explore?`,
       suggestedAction: { label: 'Explore Smart Price Finder', actionTab: 'shopping' },
       provider: 'veracost-assistant-engine',
     };
@@ -186,16 +186,7 @@ export function generateClientAssistantResponse(
     };
   }
 
-  // 7. Screenshot Import (Ctrl+V)
-  if (/screenshot|clipboard|ctrl\+v|paste screenshot|print screen|snip/i.test(lower)) {
-    return {
-      text: `To import a product screenshot in 1 second:\n\n1. Press **Win + Shift + S** (Windows) or **Cmd + Shift + 4** (Mac) to capture any product deal.\n2. Return to VeraCost and press **Ctrl + V** anywhere on the page.\n3. VeraCost immediately detects the screenshot and prompts: *"Screenshot detected. Would you like VeraCost to identify the product and compare its price?"*\n4. Visible text, brand, model, and prices are extracted with zero fabricated information.`,
-      suggestedAction: { label: 'Open Screenshot Import', actionTab: 'screenshot' },
-      provider: 'veracost-assistant-engine',
-    };
-  }
-
-  // 8. Retailer Comparisons & Best Deals
+  // 7. Retailer Comparisons & Best Deals
   if (/retailer|lowest price|best price|amazon|flipkart|croma|reliance digital|vijay sales/i.test(lower)) {
     return {
       text: `VeraCost monitors verified Indian e-commerce platforms: **Amazon India, Flipkart, Croma, Reliance Digital, Vijay Sales, Tata CLiQ, Apple Store, and Samsung India**.\n\nWe rank listings by **Estimated Checkout Cost**:\n$$\\text{Checkout Cost} = \\text{Listed Price} + \\text{Mandatory Fees} + \\text{Delivery} - \\text{Bank Card Discounts}$$\n\nThis ensures you never get tricked by low sticker prices that have high delivery charges or hidden fees.`,
@@ -204,7 +195,7 @@ export function generateClientAssistantResponse(
     };
   }
 
-  // 9. Contact Support & Lead Developer
+  // 8. Contact Support & Lead Developer
   if (/contact|support|help|developer|ronak|email|phone|call/i.test(lower)) {
     return {
       text: `You can connect directly with our Lead Architect:\n\n- **Developer**: ${dev.name} (${dev.role})\n- **Phone**: [${dev.formattedPhone}](tel:${dev.phone}) (Click to call)\n- **Email**: [${dev.email}](mailto:${dev.email})\n- **Availability**: ${dev.availability}\n\nYou can also visit our Contact & Support page to draft a pre-filled ticket in Gmail or your native mail client!`,
@@ -213,9 +204,9 @@ export function generateClientAssistantResponse(
     };
   }
 
-  // 10. General Decision Support (Contextual Fallback)
+  // 9. General Decision Support (Contextual Fallback)
   return {
-    text: `Regarding "${clean.slice(0, 80)}":\n\nVeraCost helps you evaluate this purchase by comparing verified retailer prices across Amazon, Flipkart, and Croma, alongside a 3-year Total Cost of Ownership breakdown.\n\nYou can enter the specific model name in **Smart Price Finder**, paste a product screenshot (<kbd>Ctrl+V</kbd>), or open our **Simulator Workspace** to model setup and recurring expenses.`,
+    text: `Regarding "${clean.slice(0, 80)}":\n\nVeraCost helps you evaluate this purchase by comparing verified retailer prices across Amazon, Flipkart, and Croma, alongside a 3-year Total Cost of Ownership breakdown.\n\nYou can enter the specific model name in **Smart Price Finder** or open our **Simulator Workspace** to model setup and recurring expenses.`,
     suggestedAction: { label: 'Search in Smart Price Finder', actionTab: 'shopping' },
     provider: 'veracost-assistant-engine',
   };

@@ -2,25 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { BRAND_CONFIG } from './config/branding';
 import { SAMPLE_COMPARISONS } from './data/sampleComparisons';
 import { ComparisonProject, ComparisonOption, CostItem, ProductCategory } from './types/cost';
-import { Header } from './components/Header';
+import { Header, NavTabType } from './components/Header';
 import { LandingHero } from './components/LandingHero';
 import { Workspace } from './components/Workspace';
 import { SavedComparisonsModal } from './components/SavedComparisonsModal';
 import { ReportViewModal } from './components/ReportViewModal';
-import { NebiusSettingsModal } from './components/NebiusSettingsModal';
+import { AppSettingsModal } from './components/settings/AppSettingsModal';
+import { ProfileModal } from './components/profile/ProfileModal';
+import { UserDashboard } from './components/dashboard/UserDashboard';
 import { NewComparisonModal } from './components/NewComparisonModal';
 import { DynamicBackground } from './components/DynamicBackground';
 import { SmartPriceFinder } from './components/shopping/SmartPriceFinder';
-import { ScreenshotImportModal } from './components/shopping/ScreenshotImportModal';
 import { SupportPage } from './components/SupportPage';
 import { VeraAssistantModal } from './components/chat/VeraAssistantModal';
 import { StartupScreen } from './components/startup/StartupScreen';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { auth, logoutUser, UserProfileData, isFirebaseConfigured } from './config/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { Bot, MessageSquare } from 'lucide-react';
+import { Bot } from 'lucide-react';
 import { calculateComparison } from './engine/calculator';
 import { getSuggestionsForCategory, createCostItemFromSuggestion, inferProductCategory } from './engine/discovery';
+import { SUPPORT_CONFIG } from './config/support';
 
 export const App: React.FC = () => {
   const [isInitializing, setIsInitializing] = useState(true);
@@ -34,7 +36,7 @@ export const App: React.FC = () => {
     }
   });
 
-  const [currentTab, setCurrentTab] = useState<'landing' | 'shopping' | 'workspace' | 'saved' | 'support'>('shopping');
+  const [currentTab, setCurrentTab] = useState<NavTabType>('shopping');
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try {
       const storedTheme = localStorage.getItem('veracost_theme');
@@ -63,6 +65,7 @@ export const App: React.FC = () => {
   const handleToggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
+
   const [project, setProject] = useState<ComparisonProject>(() => {
     try {
       const stored = localStorage.getItem('veracost_active_project');
@@ -80,9 +83,8 @@ export const App: React.FC = () => {
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isNewComparisonModalOpen, setIsNewComparisonModalOpen] = useState(false);
-  const [isScreenshotModalOpen, setIsScreenshotModalOpen] = useState(false);
-  const [pastedScreenshot, setPastedScreenshot] = useState<string | null>(null);
   const [isAssistantChatOpen, setIsAssistantChatOpen] = useState(false);
 
   // Check server configuration on mount
@@ -91,7 +93,6 @@ export const App: React.FC = () => {
       const resp = await fetch('/api/config');
       if (resp.ok) {
         const data = await resp.json();
-        // Also check if user has custom key in session
         const hasSessionKey = Boolean(sessionStorage.getItem('nebius_custom_api_key'));
         setIsAiLive(data.isLiveConfigured || hasSessionKey);
       }
@@ -117,6 +118,7 @@ export const App: React.FC = () => {
             uid: user.uid,
             email: user.email || '',
             displayName: user.displayName || user.email?.split('@')[0] || 'User',
+            photoURL: user.photoURL || undefined,
             createdAt: user.metadata.creationTime || new Date().toISOString(),
             lastLoginAt: user.metadata.lastSignInTime || new Date().toISOString(),
           });
@@ -144,7 +146,6 @@ export const App: React.FC = () => {
         if (timer) clearTimeout(timer);
       };
     } else {
-      // Firebase not configured or Guest mode active
       const savedGuest = sessionStorage.getItem('veracost_guest_session') === 'true';
       if (savedGuest) {
         setIsGuest(true);
@@ -201,77 +202,6 @@ export const App: React.FC = () => {
     try { sessionStorage.removeItem('veracost_guest_session'); } catch {}
     try { localStorage.removeItem('veracost_current_user'); } catch {}
   };
-
-  // Global listener for screenshot paste (Ctrl+V) and drag-and-drop from OS or other windows
-  useEffect(() => {
-    let lastPasteTime = 0;
-
-    const handleGlobalPaste = (e: ClipboardEvent) => {
-      // If user is currently focused in an input/textarea, ignore if pasting plain text
-      const target = e.target as HTMLElement;
-      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-
-      const items = e.clipboardData?.items;
-      if (!items) return;
-
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.startsWith('image/')) {
-          const now = Date.now();
-          if (now - lastPasteTime < 1500) {
-            e.preventDefault();
-            return;
-          }
-          lastPasteTime = now;
-
-          const file = items[i].getAsFile();
-          if (file) {
-            e.preventDefault();
-            const reader = new FileReader();
-            reader.onload = () => {
-              const dataUrl = reader.result as string;
-              setPastedScreenshot(dataUrl);
-              setIsScreenshotModalOpen(true);
-            };
-            reader.readAsDataURL(file);
-            break;
-          }
-        }
-      }
-    };
-
-    const handleGlobalDrop = (e: DragEvent) => {
-      const files = e.dataTransfer?.files;
-      if (!files || files.length === 0) return;
-
-      const imageFile = Array.from(files).find((f) => f.type.startsWith('image/'));
-      if (imageFile) {
-        e.preventDefault();
-        const reader = new FileReader();
-        reader.onload = () => {
-          const dataUrl = reader.result as string;
-          setPastedScreenshot(dataUrl);
-          setIsScreenshotModalOpen(true);
-        };
-        reader.readAsDataURL(imageFile);
-      }
-    };
-
-    const handleGlobalDragOver = (e: DragEvent) => {
-      if (e.dataTransfer?.types.includes('Files')) {
-        e.preventDefault();
-      }
-    };
-
-    window.addEventListener('paste', handleGlobalPaste);
-    window.addEventListener('drop', handleGlobalDrop);
-    window.addEventListener('dragover', handleGlobalDragOver);
-
-    return () => {
-      window.removeEventListener('paste', handleGlobalPaste);
-      window.removeEventListener('drop', handleGlobalDrop);
-      window.removeEventListener('dragover', handleGlobalDragOver);
-    };
-  }, []);
 
   // Sync currency changes into project
   const handleCurrencyChange = (newCurrency: string) => {
@@ -339,7 +269,7 @@ export const App: React.FC = () => {
       usefulLifeYears: 3,
       replaceAtEndOfLife: false,
       replacementCostEstimate: upfront,
-      residualValueEstimate: Math.round(upfront * 0.3), // 30% typical resale recovery
+      residualValueEstimate: Math.round(upfront * 0.3),
       residualConfidence: 'user-estimate',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -366,7 +296,7 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative', overflowX: 'hidden' }}>
       <DynamicBackground theme={theme} />
 
       <Header
@@ -380,7 +310,7 @@ export const App: React.FC = () => {
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         onOpenSavedModal={() => setIsSavedModalOpen(true)}
         onOpenNewComparison={() => setIsNewComparisonModalOpen(true)}
-        onOpenScreenshotImport={() => setIsScreenshotModalOpen(true)}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
         onToggleAssistant={() => setIsAssistantChatOpen((prev) => !prev)}
         userProfile={userProfile}
         onSignOut={handleSignOut}
@@ -394,11 +324,23 @@ export const App: React.FC = () => {
             onSelectSample={handleSelectSample}
             onOpenSmartFinder={() => setCurrentTab('shopping')}
           />
+        ) : currentTab === 'dashboard' ? (
+          <UserDashboard
+            userProfile={userProfile || { uid: 'guest', email: 'guest@veracost.app', displayName: 'Explorer', createdAt: '', lastLoginAt: '' }}
+            project={project}
+            currency={currency}
+            onNavigateToWorkspace={() => setCurrentTab('workspace')}
+            onNavigateToShopping={() => setCurrentTab('shopping')}
+            onOpenNewComparison={() => setIsNewComparisonModalOpen(true)}
+            onOpenSavedModal={() => setIsSavedModalOpen(true)}
+            onOpenSettings={() => setIsSettingsModalOpen(true)}
+            onOpenAssistant={() => setIsAssistantChatOpen(true)}
+            onSelectSample={handleSelectSample}
+          />
         ) : currentTab === 'shopping' ? (
           <SmartPriceFinder
             onImportToCalculator={handleImportFromShopping}
             currentCurrency={currency}
-            onOpenScreenshotImport={() => setIsScreenshotModalOpen(true)}
           />
         ) : currentTab === 'support' ? (
           <SupportPage
@@ -465,28 +407,37 @@ export const App: React.FC = () => {
         isOpen={isAssistantChatOpen}
         onClose={() => setIsAssistantChatOpen(false)}
         onNavigateTab={(tab) => setCurrentTab(tab)}
-        onOpenScreenshotImport={() => setIsScreenshotModalOpen(true)}
       />
 
-      {/* Screenshot & Image Import Modal */}
-      <ScreenshotImportModal
-        isOpen={isScreenshotModalOpen}
-        initialImage={pastedScreenshot}
-        onClearInitialImage={() => setPastedScreenshot(null)}
-        onClose={() => {
-          setIsScreenshotModalOpen(false);
-          setPastedScreenshot(null);
-        }}
-        onProductImported={(name, category, price) => {
-          handleImportFromShopping({
-            name,
-            category,
-            initialPurchasePrice: price || 10000,
-          });
-        }}
+      {/* My Profile / Account Details Modal */}
+      {userProfile && (
+        <ProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          userProfile={userProfile}
+          onProfileUpdated={(updated) => {
+            setUserProfile(updated);
+          }}
+        />
+      )}
+
+      {/* Comprehensive Workspace Settings Modal */}
+      <AppSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        userProfile={userProfile}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
+        currency={currency}
+        onCurrencyChange={handleCurrencyChange}
+        isAiLive={isAiLive}
+        onAiConfigChanged={checkServerConfig}
+        onOpenProfileModal={() => setIsProfileModalOpen(true)}
+        onSignOut={handleSignOut}
+        project={project}
       />
 
-      {/* Modals */}
+      {/* Other Modals */}
       <NewComparisonModal
         isOpen={isNewComparisonModalOpen}
         onClose={() => setIsNewComparisonModalOpen(false)}
@@ -514,13 +465,6 @@ export const App: React.FC = () => {
         onClose={() => setIsReportModalOpen(false)}
         project={project}
         analysis={analysis}
-      />
-
-      <NebiusSettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        isAiLive={isAiLive}
-        onConfigChanged={checkServerConfig}
       />
 
       {/* Footer */}
@@ -564,7 +508,7 @@ export const App: React.FC = () => {
                 padding: 0,
               }}
             >
-              Contact & Support (Ronak Bairagi)
+              Contact & Support ({SUPPORT_CONFIG.leadDeveloper.name})
             </button>
             <span>•</span>
             <span>{BRAND_CONFIG.hackathonNotice} • Apache 2.0 License • Nebius Token Factory & NVIDIA Nemotron</span>
