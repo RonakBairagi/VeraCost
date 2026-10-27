@@ -287,7 +287,7 @@ Analyze this scenario and return the structured JSON decision support now.`;
     // Helper to invoke OpenRouter with a timeout
     const fetchOpenRouter = async (modelName: string): Promise<Response> => {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 12000);
+      const timer = setTimeout(() => controller.abort(), 9000);
       try {
         const response = await fetch(`${baseUrl}/chat/completions`, {
           method: 'POST',
@@ -363,53 +363,53 @@ Analyze this scenario and return the structured JSON decision support now.`;
       return res.status(200).json(fallback);
     }
 
-    // Parse JSON from model
-    let cleaned = rawContent.trim();
-    if (cleaned.startsWith('```json')) {
-      cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-    } else if (cleaned.startsWith('```')) {
-      cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
-    }
-
+    // Parse JSON or extract structured sections from model response
     let parsed: any = null;
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch {
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          parsed = JSON.parse(jsonMatch[0]);
-        } catch {}
+    let jsonText = rawContent.trim();
+
+    // 1. Extract markdown code blocks if wrapped
+    const codeBlockMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (codeBlockMatch) {
+      jsonText = codeBlockMatch[1].trim();
+    } else {
+      const braceMatch = jsonText.match(/\{[\s\S]*\}/);
+      if (braceMatch) {
+        jsonText = braceMatch[0].trim();
       }
     }
 
-    if (!parsed || typeof parsed !== 'object') {
-      const fallback = generateDeterministicDecision(analysis, userScenario, activeModel);
-      return res.status(200).json(fallback);
+    // 2. Remove any trailing commas that break JSON.parse
+    const sanitizedJson = jsonText.replace(/,\s*([\]}])/g, '$1');
+
+    try {
+      parsed = JSON.parse(sanitizedJson);
+    } catch {
+      try {
+        parsed = JSON.parse(jsonText);
+      } catch {}
     }
 
+    // 3. Guaranteed base decision support for any missing sections
+    const baseDecision = generateDeterministicDecision(analysis, userScenario, activeModel);
+
     const finalResult: NemotronDecisionResult = {
-      scenarioSummary: parsed.scenarioSummary || 'Scenario analysis completed.',
-      keyFindings: Array.isArray(parsed.keyFindings) && parsed.keyFindings.length > 0
+      scenarioSummary: parsed?.scenarioSummary || (rawContent.length > 50 ? rawContent.slice(0, 300) : baseDecision.scenarioSummary),
+      keyFindings: Array.isArray(parsed?.keyFindings) && parsed.keyFindings.length > 0
         ? parsed.keyFindings
-        : [String(parsed.keyFindings || 'Lowest TCO identified.')],
-      availableOptions: Array.isArray(parsed.availableOptions) && parsed.availableOptions.length > 0
+        : baseDecision.keyFindings,
+      availableOptions: Array.isArray(parsed?.availableOptions) && parsed.availableOptions.length > 0
         ? parsed.availableOptions
-        : Object.values(results).map((o: any) => ({
-            optionName: o.optionName,
-            netCost: `${analysis.currency} ${safeLocale(o.netTotalCost)}`,
-            summary: 'Analyzed in comparison model.',
-          })),
-      recommendedDecision: parsed.recommendedDecision || 'Review detailed trade-offs above.',
-      riskAssessment: Array.isArray(parsed.riskAssessment) && parsed.riskAssessment.length > 0
+        : baseDecision.availableOptions,
+      recommendedDecision: parsed?.recommendedDecision || baseDecision.recommendedDecision,
+      riskAssessment: Array.isArray(parsed?.riskAssessment) && parsed.riskAssessment.length > 0
         ? parsed.riskAssessment
-        : [String(parsed.riskAssessment || 'Review lifecycle cost variables.')],
-      assumptionsAndMissingData: Array.isArray(parsed.assumptionsAndMissingData)
+        : baseDecision.riskAssessment,
+      assumptionsAndMissingData: Array.isArray(parsed?.assumptionsAndMissingData) && parsed.assumptionsAndMissingData.length > 0
         ? parsed.assumptionsAndMissingData
-        : [],
-      suggestedNextSteps: Array.isArray(parsed.suggestedNextSteps) && parsed.suggestedNextSteps.length > 0
+        : baseDecision.assumptionsAndMissingData,
+      suggestedNextSteps: Array.isArray(parsed?.suggestedNextSteps) && parsed.suggestedNextSteps.length > 0
         ? parsed.suggestedNextSteps
-        : ['Review upfront quotes and verify ongoing maintenance terms.'],
+        : baseDecision.suggestedNextSteps,
       rawText: rawContent,
       modelUsed: activeModel,
       provider: 'OpenRouter',
