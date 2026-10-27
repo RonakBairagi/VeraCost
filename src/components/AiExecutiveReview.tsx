@@ -266,7 +266,9 @@ ${decisionResult.disclaimer}
 
   const lowestOption = analysis.results?.[analysis.lowestCostOptionId];
 
-  return (
+    const isEffectiveLive = decisionResult ? Boolean(decisionResult.isLive) : isAiLive;
+
+    return (
     <div className="ai-panel" id="nemotron-decision-support-panel">
       {/* Header */}
       <div className="ai-header">
@@ -280,11 +282,11 @@ ${decisionResult.disclaimer}
               style={{
                 fontSize: '0.72rem',
                 fontWeight: 600,
-                color: isAiLive ? 'var(--emerald-success, #10b981)' : 'var(--amber-warning, #f59e0b)',
-                background: isAiLive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                color: isEffectiveLive ? 'var(--emerald-success, #10b981)' : 'var(--amber-warning, #f59e0b)',
+                background: isEffectiveLive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
                 padding: '0.2rem 0.65rem',
                 borderRadius: 'var(--radius-full)',
-                border: `1px solid ${isAiLive ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                border: `1px solid ${isEffectiveLive ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.35rem',
@@ -295,11 +297,11 @@ ${decisionResult.disclaimer}
                   width: '6px',
                   height: '6px',
                   borderRadius: '50%',
-                  background: isAiLive ? '#10b981' : '#f59e0b',
+                  background: isEffectiveLive ? '#10b981' : '#f59e0b',
                   display: 'inline-block',
                 }}
               />
-              {isAiLive ? 'OpenRouter Cloud Connected' : 'Deterministic Decision Mode'}
+              {isEffectiveLive ? 'OpenRouter Cloud Connected' : 'Deterministic Decision Mode'}
             </span>
             {decisionResult && (
               <span
