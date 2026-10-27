@@ -58,10 +58,9 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
 
-  // Nebius AI state
-  const [apiKey, setApiKey] = useState(sessionStorage.getItem('nebius_custom_api_key') || '');
-  const [isTestingKey, setIsTestingKey] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  // OpenRouter NVIDIA Nemotron model state
+  const [customModel, setCustomModel] = useState(sessionStorage.getItem('openrouter_custom_model') || 'nvidia/nemotron-3-ultra-550b-a55b');
+  const [modelSaved, setModelSaved] = useState(false);
 
   if (!isOpen) return null;
 
@@ -81,31 +80,15 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
     }
   };
 
-  const handleTestApiKey = async () => {
-    setIsTestingKey(true);
-    setTestResult(null);
-
-    try {
-      const resp = await fetch('/api/ai/test-key', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey }),
-      });
-      const data = await resp.json();
-      if (resp.ok && data.valid) {
-        setTestResult({ success: true, message: data.message || 'Nebius Token Factory connection verified!' });
-        if (apiKey.trim()) {
-          sessionStorage.setItem('nebius_custom_api_key', apiKey.trim());
-          if (onAiConfigChanged) onAiConfigChanged();
-        }
-      } else {
-        setTestResult({ success: false, message: data.message || 'Verification failed. Check your API key.' });
-      }
-    } catch (e: any) {
-      setTestResult({ success: false, message: `Connection error: ${e.message}` });
-    } finally {
-      setIsTestingKey(false);
+  const handleSaveModel = () => {
+    if (customModel.trim()) {
+      sessionStorage.setItem('openrouter_custom_model', customModel.trim());
+    } else {
+      sessionStorage.removeItem('openrouter_custom_model');
     }
+    setModelSaved(true);
+    setTimeout(() => setModelSaved(false), 2000);
+    if (onAiConfigChanged) onAiConfigChanged();
   };
 
   const handleExportProject = () => {
@@ -565,7 +548,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <h3 style={{ fontSize: '15px', fontWeight: '700', margin: 0, color: 'var(--text-main, #ffffff)' }}>
-                    NVIDIA Nemotron via Nebius Token Factory
+                    NVIDIA Nemotron Decision Support System
                   </h3>
                   <span
                     style={{
@@ -578,24 +561,47 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
                       border: isAiLive ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(234, 179, 8, 0.3)',
                     }}
                   >
-                    {isAiLive ? 'Live Cloud Connected' : 'Resilient Local Fallback'}
+                    {isAiLive ? 'Live Cloud Connected (OpenRouter)' : 'Deterministic Fallback Mode'}
                   </span>
                 </div>
 
                 <p style={{ fontSize: '13px', color: 'var(--text-muted, #94a3b8)', margin: '0 0 16px 0', lineHeight: 1.5 }}>
-                  VeraCost uses NVIDIA Llama-3.1-Nemotron-70B for autonomous decision synthesis and cost audits. When cloud credentials are not supplied, our high-speed client assistant engine handles queries offline.
+                  VeraCost integrates NVIDIA Nemotron via OpenRouter to analyze Total Cost of Ownership (TCO) models, audit sensitivity, and provide 7-point quantitative decision recommendations in the Simulator Workspace. API keys are managed securely on the server and never exposed to the client.
                 </p>
+
+                <div
+                  style={{
+                    padding: '14px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--bg-elevated, rgba(255, 255, 255, 0.03))',
+                    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                    marginBottom: '16px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px' }}>
+                    <span style={{ color: 'var(--text-muted, #94a3b8)' }}>Inference Provider:</span>
+                    <strong style={{ color: 'var(--text-main, #ffffff)' }}>OpenRouter (OpenAI-compatible)</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px' }}>
+                    <span style={{ color: 'var(--text-muted, #94a3b8)' }}>API Endpoint:</span>
+                    <span style={{ color: '#38bdf8', fontFamily: 'monospace' }}>https://openrouter.ai/api/v1</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                    <span style={{ color: 'var(--text-muted, #94a3b8)' }}>Workspace Status:</span>
+                    <span style={{ color: '#10b981', fontWeight: 600 }}>Zero Client Key Required • Simulator Fully Unlocked</span>
+                  </div>
+                </div>
 
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-main, #cbd5e1)', marginBottom: '6px' }}>
-                    Custom Nebius API Key (Optional)
+                    NVIDIA Nemotron Model ID
                   </label>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <input
-                      type="password"
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      placeholder="e.g. nbs-..."
+                      type="text"
+                      value={customModel}
+                      onChange={(e) => setCustomModel(e.target.value)}
+                      placeholder="e.g. nvidia/nemotron-3-ultra-550b-a55b"
                       style={{
                         flex: 1,
                         padding: '10px 12px',
@@ -604,49 +610,32 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
                         borderRadius: '10px',
                         color: 'var(--text-main, #ffffff)',
                         fontSize: '13px',
+                        fontFamily: 'monospace',
                         outline: 'none',
                       }}
                     />
                     <button
                       type="button"
-                      onClick={handleTestApiKey}
-                      disabled={isTestingKey}
+                      onClick={handleSaveModel}
                       style={{
                         padding: '10px 16px',
                         borderRadius: '10px',
-                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                        border: '1px solid rgba(59, 130, 246, 0.4)',
-                        color: '#3b82f6',
+                        backgroundColor: 'rgba(20, 184, 166, 0.2)',
+                        border: '1px solid rgba(20, 184, 166, 0.4)',
+                        color: 'var(--teal-bright, #14b8a6)',
                         fontSize: '13px',
                         fontWeight: '600',
-                        cursor: isTestingKey ? 'not-allowed' : 'pointer',
+                        cursor: 'pointer',
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {isTestingKey ? 'Verifying…' : 'Test Key'}
+                      {modelSaved ? 'Saved!' : 'Save Model'}
                     </button>
                   </div>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted, #94a3b8)', marginTop: '6px', display: 'block' }}>
+                    Default server model: <code style={{ color: '#38bdf8' }}>nvidia/nemotron-3-ultra-550b-a55b</code> (Configurable via <code style={{ color: '#38bdf8' }}>OPENROUTER_MODEL_ID</code> in server environment).
+                  </span>
                 </div>
-
-                {testResult && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px 12px',
-                      backgroundColor: testResult.success ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                      border: testResult.success ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
-                      borderRadius: '8px',
-                      color: testResult.success ? '#10b981' : '#fca5a5',
-                      fontSize: '13px',
-                      marginTop: '12px',
-                    }}
-                  >
-                    {testResult.success ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-                    <span>{testResult.message}</span>
-                  </div>
-                )}
               </div>
             </div>
           )}

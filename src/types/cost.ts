@@ -204,3 +204,31 @@ export interface AiReviewResponse {
   modelUsed: string;
   timestamp: string;
 }
+
+export interface NemotronOptionReview {
+  optionName: string;
+  netCost: string;
+  summary: string;
+}
+
+export interface NemotronDecisionResult {
+  scenarioSummary: string;
+  keyFindings: string[];
+  availableOptions: NemotronOptionReview[];
+  recommendedDecision: string;
+  riskAssessment: string[];
+  assumptionsAndMissingData: string[];
+  suggestedNextSteps: string[];
+  rawText?: string;
+  modelUsed: string;
+  provider: 'OpenRouter';
+  isLive: boolean;
+  timestamp: string;
+  disclaimer: string;
+}
+
+export interface NemotronDecisionRequest {
+  userScenario?: string;
+  analysis: ComparisonAnalysisResult;
+  customModel?: string;
+}

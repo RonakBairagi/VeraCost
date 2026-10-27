@@ -2,6 +2,11 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { explainComparisonWithNemotron } from './nebiusClient';
+import { 
+  analyzeScenarioWithNemotron, 
+  explainComparisonWithNemotronOpenRouter, 
+  DEFAULT_OPENROUTER_MODEL 
+} from './openrouterClient';
 import { ComparisonAnalysisResult } from '../src/types/cost';
 import { searchRouter } from './searchRoutes';
 import { supportChatRouter } from './supportChat';
@@ -59,7 +64,8 @@ const healthHandler = (req: Request, res: Response) => {
   res.json({
     status: 'ok',
     service: 'VeraCost Decision API',
-    provider: 'NVIDIA Nemotron via Nebius Token Factory',
+    provider: 'NVIDIA Nemotron Decision Support System via OpenRouter',
+    model: process.env.OPENROUTER_MODEL_ID || DEFAULT_OPENROUTER_MODEL,
     timestamp: new Date().toISOString(),
   });
 };
@@ -68,17 +74,27 @@ app.get('/health', healthHandler);
 
 // Non-secret public configuration
 const configHandler = (req: Request, res: Response) => {
-  const apiKey = process.env.NEBIUS_API_KEY;
-  const isLive = Boolean(apiKey && apiKey.trim() !== '' && apiKey.trim() !== 'your_nebius_api_key_here');
+  const openRouterKey = process.env.OPENROUTER_API_KEY;
+  const isOpenRouterConfigured = Boolean(
+    openRouterKey && openRouterKey.trim() !== '' && !openRouterKey.includes('your_openrouter_api_key')
+  );
+  const nebiusKey = process.env.NEBIUS_API_KEY;
+  const isNebiusConfigured = Boolean(
+    nebiusKey && nebiusKey.trim() !== '' && !nebiusKey.includes('your_nebius_api_key')
+  );
+  const isLive = isOpenRouterConfigured || isNebiusConfigured;
+
   const googleVisionKey = process.env.GOOGLE_CLOUD_VISION_API_KEY;
   const isGoogleVisionConfigured = Boolean(
     googleVisionKey && googleVisionKey.trim() !== '' && !googleVisionKey.includes('your_google_cloud_vision')
   );
 
   res.json({
-    provider: 'Nebius Token Factory',
-    defaultModel: process.env.NEBIUS_MODEL || 'nvidia/Llama-3.1-Nemotron-70B-Instruct-HF',
-    baseUrl: process.env.NEBIUS_BASE_URL || 'https://api.tokenfactory.us-central1.nebius.com/v1',
+    provider: isOpenRouterConfigured ? 'OpenRouter (NVIDIA Nemotron)' : 'Nebius Token Factory',
+    defaultModel: process.env.OPENROUTER_MODEL_ID || DEFAULT_OPENROUTER_MODEL,
+    openRouterModel: process.env.OPENROUTER_MODEL_ID || DEFAULT_OPENROUTER_MODEL,
+    isOpenRouterConfigured,
+    isNebiusConfigured,
     isLiveConfigured: isLive,
     mode: isLive ? 'live-nemotron' : 'mock-fallback',
     isGoogleVisionConfigured,
@@ -87,7 +103,32 @@ const configHandler = (req: Request, res: Response) => {
 app.get('/api/config', configHandler);
 app.get('/config', configHandler);
 
-// AI Explanation Endpoint
+// NVIDIA Nemotron Decision Support System Endpoint
+const decisionSupportHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { analysis, userScenario, customModel } = req.body || {};
+
+    if (!analysis || !analysis.results) {
+      return res.status(400).json({
+        error: 'Invalid request: "analysis" payload with calculated results is required.',
+      });
+    }
+
+    const decisionResult = await analyzeScenarioWithNemotron({
+      analysis: analysis as ComparisonAnalysisResult,
+      userScenario: typeof userScenario === 'string' ? userScenario.slice(0, 2000) : undefined,
+      customModel: typeof customModel === 'string' ? customModel.slice(0, 120) : undefined,
+    });
+
+    res.json(decisionResult);
+  } catch (err: any) {
+    next(err);
+  }
+};
+app.post('/api/ai/decision-support', decisionSupportHandler);
+app.post('/ai/decision-support', decisionSupportHandler);
+
+// AI Explanation Endpoint (Backward compatibility with OpenRouter priority)
 const explainHandler = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { analysis, customApiKey, customModel } = req.body || {};
@@ -99,12 +140,21 @@ const explainHandler = async (req: Request, res: Response, next: NextFunction) =
     }
 
     const customKeyHeader = req.headers['x-nebius-api-key'] as string | undefined;
-    const effectiveKey = customApiKey || customKeyHeader;
+    const effectiveNebiusKey = customApiKey || customKeyHeader;
 
-    const explanation = await explainComparisonWithNemotron(analysis as ComparisonAnalysisResult, {
-      apiKey: effectiveKey,
-      model: customModel,
-    });
+    // If an explicit Nebius key was provided, use Nebius; otherwise prioritize OpenRouter
+    if (effectiveNebiusKey) {
+      const explanation = await explainComparisonWithNemotron(analysis as ComparisonAnalysisResult, {
+        apiKey: effectiveNebiusKey,
+        model: customModel,
+      });
+      return res.json(explanation);
+    }
+
+    const explanation = await explainComparisonWithNemotronOpenRouter(
+      analysis as ComparisonAnalysisResult,
+      customModel
+    );
 
     res.json(explanation);
   } catch (err: any) {
