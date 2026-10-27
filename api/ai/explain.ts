@@ -87,7 +87,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const timeout = setTimeout(() => controller.abort(), 6000);
 
     const openRouterResp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -98,7 +98,7 @@ export default async function handler(req: any, res: any) {
         'X-Title': 'VeraCost AI Explanation',
       },
       body: JSON.stringify({
-        model: 'nvidia/nemotron-3-ultra-550b-a55b:free',
+        model: 'nvidia/nemotron-3.5-lightning:free',
         messages: [
           {
             role: 'system',
@@ -110,7 +110,8 @@ export default async function handler(req: any, res: any) {
           },
         ],
         temperature: 0.2,
-        max_tokens: 800,
+        max_tokens: 500,
+        reasoning: { max_tokens: 0 },
       }),
       signal: controller.signal,
     });
@@ -126,7 +127,7 @@ export default async function handler(req: any, res: any) {
           const parsed = JSON.parse(cleaned);
           return res.status(200).json({
             ...parsed,
-            modelUsed: 'nvidia/nemotron-3-ultra-550b-a55b:free',
+            modelUsed: 'nvidia/nemotron-3.5-lightning:free',
             isMock: false,
             timestamp: new Date().toISOString(),
           });

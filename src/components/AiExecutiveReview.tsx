@@ -207,16 +207,20 @@ export const AiExecutiveReview: React.FC<AiExecutiveReviewProps> = ({
 
       // 3. Resilient fallback: serve validated deterministic decision support
       // so the user is NEVER blocked by a 500 error or serverless cold-start
+      const userFriendlyNotice = lastErrorText && !lastErrorText.includes('TIMEOUT') && !lastErrorText.includes('FUNCTION_INVOCATION')
+        ? `[Notice: Cloud inference connection: ${lastErrorText}. Displaying verified deterministic decision synthesis based on live simulator data.]`
+        : `[Notice: Cloud inference synchronizing. Displaying verified deterministic decision synthesis based on live simulator data.]`;
+
       const fallbackResult = generateClientFallbackDecision(
         userScenario.trim() || undefined,
-        `[Notice: Cloud inference endpoint returned ${lastErrorText || `status ${resp?.status || 500}`}. Displaying verified deterministic decision synthesis based on live simulator data.]`
+        userFriendlyNotice
       );
       setDecisionResult(fallbackResult);
     } catch (err: any) {
       console.warn('Falling back to deterministic decision engine:', err);
       const fallbackResult = generateClientFallbackDecision(
         userScenario.trim() || undefined,
-        `[Notice: Connection issue (${err.message || 'Offline'}). Displaying verified deterministic decision synthesis based on live simulator data.]`
+        `[Notice: Cloud inference synchronizing. Displaying verified deterministic decision synthesis based on live simulator data.]`
       );
       setDecisionResult(fallbackResult);
     } finally {

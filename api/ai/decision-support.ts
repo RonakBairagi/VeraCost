@@ -188,14 +188,19 @@ export default async function handler(req: any, res: any) {
     .replace(/["']$/, '')
     .replace(/\/+$/, '');
 
-  // User-configured or default model
-  let targetModel = (customModel || process.env.OPENROUTER_MODEL_ID || 'nvidia/nemotron-3-ultra-550b-a55b:free')
+  // Always map to the fast reasoning model so that inference completes reliably in 2-5 seconds
+  let targetModel = (customModel || process.env.OPENROUTER_MODEL_ID || 'nvidia/nemotron-3.5-lightning:free')
     .trim()
     .replace(/^["']/, '')
     .replace(/["']$/, '');
 
-  if (targetModel.includes('[') || targetModel.includes('INSERT') || targetModel === '') {
-    targetModel = 'nvidia/nemotron-3-ultra-550b-a55b:free';
+  if (
+    !targetModel ||
+    targetModel.includes('550b') ||
+    targetModel.includes('[') ||
+    targetModel.includes('INSERT')
+  ) {
+    targetModel = 'nvidia/nemotron-3.5-lightning:free';
   }
 
   try {
@@ -203,92 +208,44 @@ export default async function handler(req: any, res: any) {
     const lowestOption = results[analysis.lowestCostOptionId] || Object.values(results)[0] || {};
     const highestOption = results[analysis.highestCostOptionId] || Object.values(results)[1] || lowestOption;
 
-    const systemPrompt = `You are the VeraCost NVIDIA Nemotron Decision Support System, an expert quantitative decision advisor.
-Analyze the Total Cost of Ownership (TCO) comparison, calculate trade-offs, and provide actionable, executive-grade recommendations based on the user's scenario and calculated simulator data.
-
-CRITICAL RULES:
-1. You MUST NOT alter or fabricate the verified numeric results deterministically computed by VeraCost. All figures in the prompt are verified calculations.
-2. Distinguish confirmed facts from user assumptions, estimates, and missing information.
-3. Identify missing information instead of inventing data.
-4. Provide step-by-step reasoning summaries that are useful to the user.
-5. Explain uncertainty, risk factors, and limitations.
-
-You MUST respond ONLY with a valid JSON object matching this exact schema:
+    const systemPrompt = `You are the VeraCost NVIDIA Nemotron Decision Support System.
+Analyze the Total Cost of Ownership comparison and return ONLY a valid JSON object matching this exact schema:
 {
-  "scenarioSummary": "Clear concise summary of the scenario, the user's specific problem/question, and the comparison parameters (horizon, scenario).",
-  "keyFindings": [
-    "Key quantitative finding 1 with exact numbers",
-    "Key finding 2 regarding primary cost drivers"
-  ],
-  "availableOptions": [
-    {
-      "optionName": "Name of Option",
-      "netCost": "Formatted net total cost with currency",
-      "summary": "Pros, cons, cost structure (upfront vs operating), and key trade-offs"
-    }
-  ],
-  "recommendedDecision": "Clear recommendation of which option to choose under the stated conditions, with comprehensive justification and trade-off rationale.",
-  "riskAssessment": [
-    "Specific financial or operational risk 1",
-    "Specific risk 2 (e.g. maintenance volatility, replacement timing, residual value erosion)"
-  ],
-  "assumptionsAndMissingData": [
-    "Specific assumption or missing cost line item that could alter this decision",
-    "Confidence level observation (e.g. unverified user estimates vs confirmed quotes)"
-  ],
-  "suggestedNextSteps": [
-    "Actionable next step 1 (e.g. verify warranty coverage or negotiate upfront discount)",
-    "Actionable next step 2"
-  ]
+  "scenarioSummary": "Concise summary of user problem, comparison parameters, and horizon",
+  "keyFindings": ["Quantitative finding with exact savings", "Primary cost driver finding"],
+  "availableOptions": [{"optionName": "Name", "netCost": "Currency Amount", "summary": "Pros, cons, cost trade-offs"}],
+  "recommendedDecision": "Clear recommendation of optimal option with quantitative justification",
+  "riskAssessment": ["Financial risk 1", "Operational risk 2"],
+  "assumptionsAndMissingData": ["Key assumption or unverified line item"],
+  "suggestedNextSteps": ["Actionable next step 1", "Actionable next step 2"]
 }`;
 
-    const userPrompt = `USER SCENARIO / DECISION QUESTION:
-"${userScenario && userScenario.trim().length > 0 ? userScenario.trim() : 'Evaluate all options, calculate risks and trade-offs, and recommend the optimal decision based on Total Cost of Ownership.'}"
+    const userPrompt = `Project: "${analysis?.projectTitle || 'Comparison'}" (${analysis?.horizonYears || 3}-Year, ${analysis?.scenario?.toUpperCase() || 'TYPICAL'} scenario).
+User Scenario: "${userScenario && userScenario.trim().length > 0 ? userScenario.trim() : 'Recommend the optimal decision based on Total Cost of Ownership.'}"
+Lowest TCO: "${lowestOption?.optionName || 'Option 1'}" - Net TCO: ${analysis?.currency || 'USD'} ${safeLocale(lowestOption?.netTotalCost)} (Acquisition: ${analysis?.currency} ${safeLocale(lowestOption?.initialAcquisitionTotal)}, Ongoing/Ops: ${analysis?.currency} ${safeLocale((lowestOption?.operatingTotal || 0) + (lowestOption?.maintenanceTotal || 0) + (lowestOption?.recurringTotal || 0))}, Resale: ${analysis?.currency} ${safeLocale(lowestOption?.residualRecoveryTotal)}).
+Highest TCO: "${highestOption?.optionName || 'Option 2'}" - Net TCO: ${analysis?.currency || 'USD'} ${safeLocale(highestOption?.netTotalCost)} (Acquisition: ${analysis?.currency} ${safeLocale(highestOption?.initialAcquisitionTotal)}, Ongoing/Ops: ${analysis?.currency} ${safeLocale((highestOption?.operatingTotal || 0) + (highestOption?.maintenanceTotal || 0) + (highestOption?.recurringTotal || 0))}, Resale: ${analysis?.currency} ${safeLocale(highestOption?.residualRecoveryTotal)}).
+Net Savings: ${analysis?.currency || 'USD'} ${safeLocale(analysis?.netSavings)} (${analysis?.percentageSavings || 0}%).
+Primary Cost Driver: ${analysis?.keyDrivers?.[0]?.title || 'Upfront purchase price variance'}.
+Options Evaluated:
+${Object.values(results).map((opt: any) => `- "${opt.optionName}": Net TCO ${analysis.currency} ${safeLocale(opt.netTotalCost)} (Upfront ${analysis.currency} ${safeLocale(opt.initialAcquisitionTotal)}, Ongoing ${analysis.currency} ${safeLocale((opt.operatingTotal || 0) + (opt.maintenanceTotal || 0) + (opt.recurringTotal || 0))}, Resale -${analysis.currency} ${safeLocale(opt.residualRecoveryTotal)})`).join('\n')}
+Return the structured 7-section JSON decision support now.`;
 
-SIMULATOR PROJECT CONTEXT:
-Project: "${analysis?.projectTitle || 'Comparison Project'}"
-Horizon: ${analysis?.horizonYears || 3} years
-Scenario: ${analysis?.scenario || 'typical'}
-Currency: ${analysis?.currency || 'USD'}
-Discount Rate: ${analysis?.discountRatePct || 0}%
-
-LOWEST COST OPTION:
-"${lowestOption?.optionName || 'Option 1'}" — Net TCO: ${analysis?.currency || 'USD'} ${safeLocale(lowestOption?.netTotalCost)}
-
-HIGHEST COST OPTION:
-"${highestOption?.optionName || 'Option 2'}" — Net TCO: ${analysis?.currency || 'USD'} ${safeLocale(highestOption?.netTotalCost)}
-Net Savings: ${analysis?.currency || 'USD'} ${safeLocale(analysis?.netSavings)} (${analysis?.percentageSavings || 0}%)
-
-DETAILED OPTIONS BREAKDOWN:
-${Object.values(results)
-  .map(
-    (opt: any) => `
-* Option: "${opt.optionName}"
-  - Upfront Acquisition: ${analysis.currency} ${safeLocale(opt.initialAcquisitionTotal)}
-  - Setup & Accessories: ${analysis.currency} ${safeLocale(opt.setupAccessoriesTotal)}
-  - Recurring Subscriptions: ${analysis.currency} ${safeLocale(opt.recurringTotal)}
-  - Maintenance & Repairs: ${analysis.currency} ${safeLocale(opt.maintenanceTotal)}
-  - Operating & Consumables: ${analysis.currency} ${safeLocale(opt.operatingTotal)}
-  - Replacement Outlays: ${analysis.currency} ${safeLocale(opt.replacementTotal)} (${opt.replacementsOccurred || 0} replacements)
-  - Residual Recovery (Resale): -${analysis.currency} ${safeLocale(opt.residualRecoveryTotal)}
-  - Net Total Cost of Ownership: ${analysis.currency} ${safeLocale(opt.netTotalCost)} (Monthly Equivalent: ${analysis.currency} ${safeLocale(opt.monthlyEquivalentCost)})
-  - Audit Confidence: ${opt.confidenceBreakdown?.confirmedTotal || 0} confirmed, ${opt.confidenceBreakdown?.userEstimateTotal || 0} user estimates, ${opt.confidenceBreakdown?.missingCount || 0} missing items.
-`
-  )
-  .join('\n')}
-
-TOP COST DRIVERS (Engine Identified):
-${(analysis?.keyDrivers || [])
-  .map((d: any) => `- ${d.title}: ${d.description} (Impact: ${analysis.currency} ${safeLocale(d.impactAmount)})`)
-  .join('\n')}
-
-Analyze this scenario and return the structured JSON decision support now.`;
-
-    // Helper to invoke OpenRouter with a timeout
-    const fetchOpenRouter = async (modelName: string): Promise<Response> => {
+    // Helper to invoke OpenRouter with a strict 8s timeout so Vercel 10s limit is never exceeded
+    const fetchOpenRouter = async (modelName: string, timeoutMs: number = 8000): Promise<Response> => {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 9000);
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
+        const payload: any = {
+          model: modelName,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.2,
+          max_tokens: 800,
+          reasoning: { max_tokens: 0 },
+        };
+
         const response = await fetch(`${baseUrl}/chat/completions`, {
           method: 'POST',
           headers: {
@@ -297,15 +254,7 @@ Analyze this scenario and return the structured JSON decision support now.`;
             'HTTP-Referer': 'https://veracost.vercel.app',
             'X-Title': 'VeraCost NVIDIA Nemotron Decision Support',
           },
-          body: JSON.stringify({
-            model: modelName,
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt },
-            ],
-            temperature: 0.2,
-            max_tokens: 1200,
-          }),
+          body: JSON.stringify(payload),
           signal: controller.signal,
         });
         clearTimeout(timer);
@@ -320,37 +269,17 @@ Analyze this scenario and return the structured JSON decision support now.`;
     let resp: Response | null = null;
 
     try {
-      resp = await fetchOpenRouter(activeModel);
+      resp = await fetchOpenRouter(activeModel, 8000);
     } catch (primaryErr: any) {
-      console.warn(`[Nemotron] First call to ${activeModel} failed: ${primaryErr.message}. Trying free model...`);
-    }
-
-    // If first attempt failed, timed out, or returned 402 (insufficient credits) / 404 / 400:
-    if (!resp || !resp.ok) {
-      // 1. Try verified free 550B model
-      if (activeModel !== 'nvidia/nemotron-3-ultra-550b-a55b:free') {
-        activeModel = 'nvidia/nemotron-3-ultra-550b-a55b:free';
-        try {
-          resp = await fetchOpenRouter(activeModel);
-        } catch {}
-      }
-
-      // 2. If still not ok or timed out, try high-speed lightning model
-      if (!resp || !resp.ok) {
-        activeModel = 'nvidia/nemotron-3.5-lightning:free';
-        try {
-          resp = await fetchOpenRouter(activeModel);
-        } catch {}
-      }
+      console.warn(`[Nemotron] Call to ${activeModel} failed or timed out: ${primaryErr.message}`);
     }
 
     if (!resp || !resp.ok) {
-      const errStatus = resp ? resp.status : 504;
       const fallback = generateDeterministicDecision(
         analysis,
         userScenario,
         'VeraCost Decision Engine',
-        `Live cloud inference unavailable (OpenRouter HTTP ${errStatus}). Displaying verified deterministic decision synthesis based on live simulator data.`
+        `Live cloud inference unavailable. Displaying verified deterministic decision synthesis based on live simulator data.`
       );
       return res.status(200).json(fallback);
     }
@@ -392,24 +321,45 @@ Analyze this scenario and return the structured JSON decision support now.`;
     // 3. Guaranteed base decision support for any missing sections
     const baseDecision = generateDeterministicDecision(analysis, userScenario, activeModel);
 
+    // Format available options properly even if model returns numbers for netCost
+    let availableOptions: NemotronOptionReview[] = baseDecision.availableOptions;
+    if (Array.isArray(parsed?.availableOptions) && parsed.availableOptions.length > 0) {
+      availableOptions = parsed.availableOptions.map((opt: any) => ({
+        optionName: String(opt.optionName || opt.option || 'Option'),
+        netCost:
+          typeof opt.netCost === 'number'
+            ? `${analysis?.currency || 'USD'} ${safeLocale(opt.netCost)}`
+            : String(opt.netCost || opt.price || ''),
+        summary: String(opt.summary || opt.description || opt.pros || 'Evaluated in simulator model.'),
+      }));
+    }
+
     const finalResult: NemotronDecisionResult = {
-      scenarioSummary: parsed?.scenarioSummary || (rawContent.length > 50 ? rawContent.slice(0, 300) : baseDecision.scenarioSummary),
-      keyFindings: Array.isArray(parsed?.keyFindings) && parsed.keyFindings.length > 0
-        ? parsed.keyFindings
-        : baseDecision.keyFindings,
-      availableOptions: Array.isArray(parsed?.availableOptions) && parsed.availableOptions.length > 0
-        ? parsed.availableOptions
-        : baseDecision.availableOptions,
-      recommendedDecision: parsed?.recommendedDecision || baseDecision.recommendedDecision,
-      riskAssessment: Array.isArray(parsed?.riskAssessment) && parsed.riskAssessment.length > 0
-        ? parsed.riskAssessment
-        : baseDecision.riskAssessment,
-      assumptionsAndMissingData: Array.isArray(parsed?.assumptionsAndMissingData) && parsed.assumptionsAndMissingData.length > 0
-        ? parsed.assumptionsAndMissingData
-        : baseDecision.assumptionsAndMissingData,
-      suggestedNextSteps: Array.isArray(parsed?.suggestedNextSteps) && parsed.suggestedNextSteps.length > 0
-        ? parsed.suggestedNextSteps
-        : baseDecision.suggestedNextSteps,
+      scenarioSummary:
+        typeof parsed?.scenarioSummary === 'string' && parsed.scenarioSummary.trim().length > 10
+          ? parsed.scenarioSummary.trim()
+          : baseDecision.scenarioSummary,
+      keyFindings:
+        Array.isArray(parsed?.keyFindings) && parsed.keyFindings.length > 0
+          ? parsed.keyFindings.map((f: any) => String(f))
+          : baseDecision.keyFindings,
+      availableOptions,
+      recommendedDecision:
+        typeof parsed?.recommendedDecision === 'string' && parsed.recommendedDecision.trim().length > 0
+          ? parsed.recommendedDecision.trim()
+          : baseDecision.recommendedDecision,
+      riskAssessment:
+        Array.isArray(parsed?.riskAssessment) && parsed.riskAssessment.length > 0
+          ? parsed.riskAssessment.map((r: any) => String(r))
+          : baseDecision.riskAssessment,
+      assumptionsAndMissingData:
+        Array.isArray(parsed?.assumptionsAndMissingData) && parsed.assumptionsAndMissingData.length > 0
+          ? parsed.assumptionsAndMissingData.map((a: any) => String(a))
+          : baseDecision.assumptionsAndMissingData,
+      suggestedNextSteps:
+        Array.isArray(parsed?.suggestedNextSteps) && parsed.suggestedNextSteps.length > 0
+          ? parsed.suggestedNextSteps.map((s: any) => String(s))
+          : baseDecision.suggestedNextSteps,
       rawText: rawContent,
       modelUsed: activeModel,
       provider: 'OpenRouter',

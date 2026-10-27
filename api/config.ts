@@ -20,7 +20,7 @@ export default function handler(req: any, res: any) {
   );
 
   const isLiveConfigured = isOpenRouterConfigured || isNebiusConfigured;
-  const defaultModel = process.env.OPENROUTER_MODEL_ID || 'nvidia/nemotron-3-ultra-550b-a55b:free';
+  const defaultModel = process.env.OPENROUTER_MODEL_ID || 'nvidia/nemotron-3.5-lightning:free';
 
   const googleVisionKey = process.env.GOOGLE_CLOUD_VISION_API_KEY?.trim() || '';
   const isGoogleVisionConfigured = Boolean(
