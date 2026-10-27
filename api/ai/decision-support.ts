@@ -317,31 +317,26 @@ Analyze this scenario and return the structured JSON decision support now.`;
     };
 
     let activeModel = targetModel;
-    let resp: Response;
+    let resp: Response | null = null;
 
     try {
       resp = await fetchOpenRouter(activeModel);
     } catch (primaryErr: any) {
-      console.warn(`[Nemotron] First call to ${activeModel} failed: ${primaryErr.message}. Trying free model fallback...`);
-      activeModel = 'nvidia/nemotron-3-ultra-550b-a55b:free';
-      resp = await fetchOpenRouter(activeModel);
+      console.warn(`[Nemotron] First call to ${activeModel} failed: ${primaryErr.message}. Trying free model...`);
     }
 
-    // If OpenRouter returns 402 (insufficient credits on paid model), 404, or 400:
-    // Seamlessly retry with verified free Nemotron model
-    if (!resp.ok && (resp.status === 402 || resp.status === 404 || resp.status === 400)) {
+    // If first attempt failed, timed out, or returned 402 (insufficient credits) / 404 / 400:
+    if (!resp || !resp.ok) {
+      // 1. Try verified free 550B model
       if (activeModel !== 'nvidia/nemotron-3-ultra-550b-a55b:free') {
-        console.warn(`[Nemotron] Model ${activeModel} returned HTTP ${resp.status}. Retrying with nvidia/nemotron-3-ultra-550b-a55b:free...`);
         activeModel = 'nvidia/nemotron-3-ultra-550b-a55b:free';
         try {
           resp = await fetchOpenRouter(activeModel);
-        } catch {
-          // Try lightning
-        }
+        } catch {}
       }
 
-      // If still not ok, try secondary lightning free model
-      if (!resp.ok && activeModel !== 'nvidia/nemotron-3.5-lightning:free') {
+      // 2. If still not ok or timed out, try high-speed lightning model
+      if (!resp || !resp.ok) {
         activeModel = 'nvidia/nemotron-3.5-lightning:free';
         try {
           resp = await fetchOpenRouter(activeModel);
@@ -349,20 +344,19 @@ Analyze this scenario and return the structured JSON decision support now.`;
       }
     }
 
-    if (!resp.ok) {
-      const errText = await resp.text().catch(() => '');
-      console.warn(`[Nemotron] OpenRouter returned HTTP ${resp.status}: ${errText.slice(0, 150)}`);
+    if (!resp || !resp.ok) {
+      const errStatus = resp ? resp.status : 504;
       const fallback = generateDeterministicDecision(
         analysis,
         userScenario,
         'VeraCost Decision Engine',
-        `Live cloud inference unavailable (OpenRouter HTTP ${resp.status}). Displaying verified deterministic decision synthesis based on live simulator data.`
+        `Live cloud inference unavailable (OpenRouter HTTP ${errStatus}). Displaying verified deterministic decision synthesis based on live simulator data.`
       );
       return res.status(200).json(fallback);
     }
 
     const data = await resp.json();
-    const rawContent = data?.choices?.[0]?.message?.content;
+    const rawContent = data?.choices?.[0]?.message?.content || data?.choices?.[0]?.message?.reasoning;
 
     if (!rawContent || typeof rawContent !== 'string') {
       const fallback = generateDeterministicDecision(analysis, userScenario, activeModel);
